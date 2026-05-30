@@ -68,6 +68,7 @@ def slim_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
     failing_data = entry.get("failing_data") if isinstance(entry.get("failing_data"), dict) else {}
     instance = entry.get("instance") or ""
     team = entry.get("team") or infer_team(instance)
+    classification = entry.get("classification") if isinstance(entry.get("classification"), dict) else None
 
     return {
         "visual_id": entry.get("visual_id"),
@@ -79,6 +80,7 @@ def slim_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
         "axis": entry.get("axis") if isinstance(entry.get("axis"), dict) else {},
         "legends": entry.get("legends") if isinstance(entry.get("legends"), dict) else {},
         "rows": failing_data.get("rows") if isinstance(failing_data.get("rows"), list) else [],
+        "classification": classification,
     }
 
 
@@ -113,6 +115,14 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 .card.active{border-color:#0d7c66;background:#edf8f4}
 .card .inst{font-size:.78rem;color:#2a4a40;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card .team-tag{display:inline-block;font-size:.68rem;background:#e0ebe5;border-radius:3px;padding:1px 5px;color:#2a5e48;margin-top:2px}
+.card .class-tag{display:inline-block;font-size:.68rem;border-radius:3px;padding:1px 5px;margin-top:2px;margin-left:4px;font-weight:600}
+.class-tag.red{background:#fde2e2;color:#b91c1c}.class-tag.clean{background:#d1fae5;color:#065f46}
+.class-tag.ceiling{background:#fef3c7;color:#92400e}.class-tag.floor{background:#e0e7ff;color:#3730a3}
+.class-tag.diagonal{background:#ede9fe;color:#5b21b6}.class-tag.speed_limit{background:#fee2e2;color:#991b1b}
+.class-tag.slow_limit{background:#dbeafe;color:#1e40af}.class-tag.crack{background:#fce7f3;color:#9d174d}
+.class-tag.island{background:#ccfbf1;color:#134e4a}.class-tag.mixed{background:#f3f4f6;color:#374151}
+.class-tag.corner_top_left,.class-tag.corner_top_right,.class-tag.corner_bottom_left,.class-tag.corner_bottom_right{background:#fff7ed;color:#9a3412}
+.meta-item.classification .v{font-weight:600}
 .main{flex:1;overflow-y:auto;padding:16px}
 .panel{background:#fff;border:1px solid #d4ddd8;border-radius:10px;padding:14px;margin-bottom:12px}
 .panel h2{font-size:.92rem;margin-bottom:10px;color:#1a3b2e}
@@ -140,6 +150,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   <div class="filters">
     <select id="team-filter"><option value="">All Teams</option></select>
     <select id="unit-filter"><option value="">All Units</option></select>
+    <select id="class-filter"><option value="">All Classifications</option></select>
     <input id="search" placeholder="Search instance, plist..." />
   </div>
 </header>
@@ -177,11 +188,16 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   var teamFilter = document.getElementById("team-filter");
   var unitFilter = document.getElementById("unit-filter");
 
+  var classFilter = document.getElementById("class-filter");
+
   var teamSet = {};
   var unitSet = {};
+  var classSet = {};
   for (var i = 0; i < entries.length; i++) {
     teamSet[entries[i].team || "UNKNOWN"] = true;
     unitSet[entries[i].visual_id || "NO_VISUAL_ID"] = true;
+    var cl = entries[i].classification;
+    classSet[cl && cl.category ? cl.category : "unclassified"] = true;
   }
 
   Object.keys(teamSet).sort().forEach(function(team){
@@ -198,6 +214,13 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     unitFilter.appendChild(opt);
   });
 
+  Object.keys(classSet).sort().forEach(function(cls){
+    var opt = document.createElement("option");
+    opt.value = cls;
+    opt.textContent = cls;
+    classFilter.appendChild(opt);
+  });
+
   var filtered = entries.slice();
   var selectedIdx = 0;
   var COLORS = ["#e76f51","#f4a261","#e9c46a","#2a9d8f","#457b9d","#f72585","#4361ee","#7209b7","#ef476f","#06d6a0","#ff7f11","#1d3557","#8ecae6","#e63946","#fb8500"];
@@ -205,47 +228,6 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   function esc(v){ return (v === null || v === undefined || v === "") ? "-" : String(v); }
   function shortFile(v){ if(!v) return "-"; var p=v.replace(/\\\\/g,"/").split("/"); return p[p.length-1] || v; }
   function getColor(sym, idx){ return sym === "*" ? "#b7e4c7" : COLORS[idx % COLORS.length]; }
-  function summarizeAxisLabel(label){
-    if (!label) return "";
-
-    var raw = String(label).trim();
-    if (!raw || raw.indexOf(",") === -1) return raw;
-
-    var tokens = raw.split(",").map(function(t){ return t.trim(); }).filter(function(t){ return t.length > 0; });
-    if (tokens.length < 6) return raw;
-
-    var grouped = [];
-    var seen = {};
-    var groupedCount = 0;
-
-    for (var i = 0; i < tokens.length; i++) {
-      var token = tokens[i];
-      var m = token.match(/^(.*)_C\\d+R\\d+(?:_|$)/i);
-      var base = m ? m[1] : "";
-
-      if (!base) {
-        m = token.match(/^(.*)_R\\d+(?:_|$)/i);
-        base = m ? m[1] : "";
-      }
-
-      if (!base) continue;
-      groupedCount += 1;
-      if (!seen[base]) {
-        seen[base] = true;
-        grouped.push(base);
-      }
-    }
-
-    if (groupedCount >= 3 && grouped.length >= 2 && grouped.length < tokens.length) {
-      return grouped.join(", ");
-    }
-
-    if (raw.length > 110) {
-      return tokens.slice(0, 4).join(", ") + ", ...";
-    }
-
-    return raw;
-  }
 
   function renderCards(){
     if (!filtered.length) {
@@ -273,8 +255,11 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
         var idx = items[j].idx;
         var cls = idx === selectedIdx ? "card active" : "card";
         html += '<div class="' + cls + '" data-idx="' + idx + '">';
+        var clCat = (e.classification && e.classification.category) ? e.classification.category : '';
+        var clConf = (e.classification && e.classification.confidence) ? (e.classification.confidence * 100).toFixed(0) + '%' : '';
         html += '<div class="inst">' + esc(e.instance) + '</div>';
         html += '<span class="team-tag">' + esc(e.team) + '</span>';
+        if (clCat) { html += '<span class="class-tag ' + clCat + '">' + clCat + (clConf ? ' ' + clConf : '') + '</span>'; }
         html += '</div>';
       }
       html += '</div>';
@@ -293,23 +278,25 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   }
 
   function renderMeta(e){
-    var yLabelRaw = (e.axis && e.axis.ylabel) ? String(e.axis.ylabel) : "";
-    var yLabelDisplay = summarizeAxisLabel(yLabelRaw);
+    var clInfo = e.classification;
+    var clText = clInfo ? clInfo.category + ' (' + ((clInfo.confidence||0)*100).toFixed(0) + '% confidence)' : 'unclassified';
     var items = [
       ["Visual ID", e.visual_id],
       ["Team", e.team],
+      ["Classification", clText],
       ["Die ID", e.die_id],
       ["Instance", e.instance],
       ["PList", e.plist],
       ["Source", shortFile(e.source_file)],
-      ["X" + (e.axis.xlabel ? " \u2014 " + e.axis.xlabel : ""), esc(e.axis.xstart) + " to " + esc(e.axis.xstop) + " step " + esc(e.axis.xstep)],
-      ["Y" + (yLabelDisplay ? " \u2014 " + yLabelDisplay : ""), esc(e.axis.ystart) + " to " + esc(e.axis.ystop) + " step " + esc(e.axis.ystep)]
+      ["X", esc(e.axis.xstart) + " to " + esc(e.axis.xstop) + " step " + esc(e.axis.xstep)],
+      ["Y", esc(e.axis.ystart) + " to " + esc(e.axis.ystop) + " step " + esc(e.axis.ystep)]
     ];
 
     var html = "";
     for (var i = 0; i < items.length; i++) {
       var key = items[i][0];
       var cls = (key === "Instance" || key === "PList") ? "meta-item wide" : "meta-item";
+      if (key === "Classification") cls = "meta-item classification";
       html += '<div class="' + cls + '"><div class="k">' + key + '</div><div class="v">' + esc(items[i][1]) + '</div></div>';
     }
     metaPanel.innerHTML = html;
@@ -339,22 +326,14 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     var symbolIdx = {};
     for (var si = 0; si < symbols.length; si++) { symbolIdx[symbols[si]] = si; }
 
-    var xlabel = (axis.xlabel || "");
-    var ylabel = summarizeAxisLabel(axis.ylabel || "");
-
-    var html = '<div style="display:inline-flex;flex-direction:column;align-items:center">';
-    html += '<div style="display:flex;align-items:center">';
-    if (ylabel) {
-      html += '<div style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:600;color:#2a4a40;padding:0 8px;white-space:nowrap">' + ylabel + '</div>';
-    }
-    html += '<table><tr><td></td>';
+    var html = '<table><tr><td></td>';
     for (var x = 0; x < maxCols; x++) {
       var xVal = (xStart + x * xStep).toFixed(3);
       html += "<td style='font-size:11px;writing-mode:vertical-rl;transform:rotate(180deg);height:72px;padding:4px 2px'>" + xVal + "</td>";
     }
     html += '</tr>';
 
-    for (var y = rows.length - 1; y >= 0; y--) {
+    for (var y = 0; y < rows.length; y++) {
       var yVal = (yStart + y * yStep).toFixed(4);
       html += "<tr><td style='font-size:11px;white-space:nowrap;padding-right:8px'>" + yVal + "</td>";
       var row = rows[y];
@@ -370,11 +349,6 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
       html += '</tr>';
     }
     html += '</table>';
-    html += '</div>';
-    if (xlabel) {
-      html += '<div style="font-size:11px;font-weight:600;color:#2a4a40;padding:6px 0 2px;text-align:center">' + xlabel + '</div>';
-    }
-    html += '</div>';
     shmooGrid.innerHTML = html;
   }
 
@@ -410,6 +384,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   function applyFilter(){
     var teamVal = teamFilter.value;
     var unitVal = unitFilter.value;
+    var classVal = classFilter.value;
     var q = searchBox.value.trim().toLowerCase();
 
     filtered = [];
@@ -417,6 +392,10 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
       var e = entries[i];
       if (teamVal && (e.team || "UNKNOWN") !== teamVal) continue;
       if (unitVal && (e.visual_id || "") !== unitVal) continue;
+      if (classVal) {
+        var eCat = (e.classification && e.classification.category) ? e.classification.category : "unclassified";
+        if (eCat !== classVal) continue;
+      }
       if (q) {
         var hay = [e.visual_id, e.instance, e.plist, e.die_id, e.source_file, e.team].join(' ').toLowerCase();
         if (hay.indexOf(q) === -1) continue;
@@ -430,6 +409,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 
   teamFilter.addEventListener('change', applyFilter);
   unitFilter.addEventListener('change', applyFilter);
+  classFilter.addEventListener('change', applyFilter);
   searchBox.addEventListener('input', applyFilter);
   renderCards();
 })();

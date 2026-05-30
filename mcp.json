@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "flash": {
+      "tools": [
+        "*"
+      ],
+      "type": "http",
+      "url": "https://mdcx-tvpv-flash.intel.com/mcp"
+    }
+  }
+}
+ 

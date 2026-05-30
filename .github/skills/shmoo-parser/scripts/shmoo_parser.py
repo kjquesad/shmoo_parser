@@ -274,19 +274,47 @@ def infer_plist_from_text(text: str) -> Optional[str]:
 
 def infer_plist_from_strgval_payload(payload: str) -> Optional[str]:
     """Extract plist from payloads shaped like strgval_<plist>:pattern..."""
+    # Known axis label prefixes that are NOT plists
+    _AXIS_KEYWORDS = {"TIMING", "VOLTAGE", "FREQUENCY", "CURRENT", "TEMP", "TEMPERATURE"}
+
+    def _is_shmoo_grid_data(candidate: str) -> bool:
+        """Return True if the candidate looks like shmoo grid data (e.g., AAAAAAA, ****BBB)."""
+        if not candidate:
+            return True
+        # Shmoo grid rows are underscore-separated tokens of equal length containing only
+        # pass/fail symbols (*, A-Z, a-z, 0-9). Real plist names have meaningful word
+        # structure with varying token lengths.
+        parts = candidate.split("_")
+        if len(parts) >= 3:
+            # Check if all parts are same length (grid rows are uniform width)
+            lengths = set(len(p) for p in parts if p)
+            if len(lengths) == 1:
+                # All tokens same width — likely grid data
+                sample = "".join(parts)
+                # Grid data is only pass/fail symbols with no lowercase multi-char words
+                if all(c in "*ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" for c in sample):
+                    return True
+        # Single token: if it's all the same character repeated, it's grid data
+        stripped = candidate.replace("_", "")
+        if stripped and len(set(stripped)) <= 3 and len(stripped) > 4:
+            return True
+        return False
+
     token = payload.strip()
     match = re.search(
         r"(?:\d+_)?strgval_([A-Za-z0-9_]+?)(?=\s*[:\s]|$)", token, re.IGNORECASE
     )
     if match:
-        return match.group(1).strip()
+        candidate = match.group(1).strip()
+        if candidate.upper() not in _AXIS_KEYWORDS and not _is_shmoo_grid_data(candidate):
+            return candidate
 
     if token.lower().startswith("strgval_"):
         token = token[len("strgval_") :]
 
     if ":" in token:
         candidate = token.split(":", 1)[0].strip()
-        if candidate:
+        if candidate and candidate.upper() not in _AXIS_KEYWORDS and not _is_shmoo_grid_data(candidate):
             return candidate
 
     return None
@@ -364,7 +392,12 @@ def build_failing_data(
 
 
 def _extract_team_from_tname(tname: str) -> Optional[str]:
-    """Extract team from tname like SCN_SCAN_COMP::TATPG_... -> SCN_SCAN."""
+    """Extract team from tname.
+
+    Formats:
+      - SCN_SCAN_COMP::TATPG_...          -> SCN_SCAN
+      - IP_IMH::SCN_A_IMH::STUCK_...      -> SCN_A_IMH  (die::team::testname)
+    """
     if not tname:
         return None
     # Strip leading digit_tname_ prefix
@@ -372,8 +405,12 @@ def _extract_team_from_tname(tname: str) -> Optional[str]:
     content = match.group(1) if match else tname
     if "_COMP::" in content:
         return content.split("_COMP::")[0]
-    if "::" in content:
-        return content.split("::")[0]
+    parts = content.split("::")
+    if len(parts) >= 3:
+        # die::team::testname — return team (second segment)
+        return parts[1]
+    if len(parts) == 2:
+        return parts[0]
     return None
 
 
@@ -381,8 +418,6 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
     """Parse one shmoo section into a JSON-serializable object."""
     visual_id: Optional[str] = None
     die_id: Optional[str] = None
-    plist_name: Optional[str] = None
-    plist_from_patterns: Optional[str] = None
     shmoo_title: Optional[str] = None
     team: Optional[str] = None
 
@@ -392,29 +427,53 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
     shmoo_results_data: Optional[str] = None
     capture_next_as_results = False
 
+    # Plist candidates collected during parsing (resolved by priority after loop)
+    plist_from_strgval: Optional[str] = None       # Priority 1: ^LEGEND^ + next strgval_ line
+    plist_from_failure_info: Optional[str] = None  # Priority 2: Failure information: pattern|num:plist:port
+    plist_from_bracket: Optional[str] = None       # Priority 3: Plist=[...] or Plist name=[...]
+
+    def _extract_plist_from_payload(text: str) -> Optional[str]:
+        """Extract plist from strgval/failure-info payload.
+
+        Handles formats:
+          - <plist>:<pattern>                        (plist first, no pipe)
+          - <pattern>:<plist>:<testport>             (pattern first, no pipe, 3+ segments)
+          - <pattern>|<num>:<instance>::<plist>:...  (pipe format with :: separator)
+          - <pattern>|<num>:<plist>:<testport>       (pipe format without ::)
+        """
+        if ":" not in text:
+            return None
+        first_seg = text.split(":", 1)[0].strip()
+        if "|" in first_seg:
+            # Has pipe: pattern|num:<...>
+            if "::" in text:
+                after_dcolon = text.split("::", 1)[1]
+                return after_dcolon.split(":", 1)[0].strip() or None
+            else:
+                parts = text.split(":")
+                return parts[1].strip() if len(parts) >= 2 else None
+        else:
+            # No pipe — check segment count and whether first_seg is a pattern hash
+            parts = text.split(":")
+            is_hash = bool(re.match(r"^[a-zA-Z]\d{5,}", first_seg))
+            if is_hash and len(parts) >= 2:
+                # pattern:plist:testport — plist is parts[1]
+                return parts[1].strip() or None
+            else:
+                # plist:pattern
+                return first_seg or None
+
     for i, line in enumerate(section):
         stripped = line.strip()
 
         if capture_next_as_results:
             shmoo_results_data = stripped
-            inferred = infer_plist_from_strgval_payload(stripped)
-            if inferred:
-                plist_from_patterns = inferred
-                if not plist_name or plist_name.upper() == "PATMOD":
-                    plist_name = inferred
             capture_next_as_results = False
             continue
 
         maybe_visualid = parse_visualid_from_line(stripped)
         if maybe_visualid:
             visual_id = maybe_visualid
-
-        if "strgval_" in stripped.lower():
-            inferred = infer_plist_from_strgval_payload(stripped)
-            if inferred:
-                plist_from_patterns = inferred
-            if not plist_name:
-                plist_name = inferred
 
         tname_match = re.match(r"\d+_tname_(.+)", stripped)
         if tname_match and not team:
@@ -425,17 +484,10 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
             if "::" in shmoo_title:
                 shmoo_title = shmoo_title.split("::")[-1].replace("_ShmooParams", "")
 
-        plist_match = re.search(r"Plist\s*=\s*\[([^\]]+)\]", stripped, re.IGNORECASE)
-        if plist_match:
-            plist_name = plist_match.group(1).strip()
-
-        parent_plist_match = re.search(r"parentPlist\s*=\s*\[([^\]]+)\]", stripped, re.IGNORECASE)
-        if parent_plist_match and not plist_name:
-            plist_name = parent_plist_match.group(1).strip()
-
-        patlist_match = re.search(r"Patlist\s*=\s*\"([^\"]+)\"", stripped, re.IGNORECASE)
-        if patlist_match and not plist_name:
-            plist_name = patlist_match.group(1).strip()
+        # Priority 3: Plist=[...] or Plist name=[...]
+        plist_match = re.search(r"Plist\s*(?:name)?\s*=\s*\[([^\]]+)\]", stripped, re.IGNORECASE)
+        if plist_match and not plist_from_bracket:
+            plist_from_bracket = plist_match.group(1).strip()
 
         dieid_match = re.search(r"DieId\s*=\s*\[([^\]]+)\]", stripped, re.IGNORECASE)
         if dieid_match:
@@ -447,6 +499,7 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
         if "shmooresults" in stripped.lower():
             capture_next_as_results = True
 
+        # ^LEGEND^ handling: collect legend text + Priority 1 plist from strgval
         if "^LEGEND^" in stripped:
             parts = stripped.split("^")
             try:
@@ -468,40 +521,37 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
                 if i + 1 < len(section) and "strgval_" in section[i + 1]:
                     failure_info = section[i + 1].split("strgval_", 1)[1].strip()
                     legends[legend_char] = failure_info
-                    inferred = infer_plist_from_strgval_payload(failure_info)
-                    if inferred:
-                        plist_from_patterns = inferred
-                    if not plist_name:
-                        plist_name = inferred
+                    # Priority 1: extract plist from strgval payload
+                    if not plist_from_strgval:
+                        candidate = _extract_plist_from_payload(failure_info)
+                        if candidate:
+                            plist_from_strgval = candidate
 
+        # "Legend : [X] ... Failure information: ..." handling
         if "Legend :" in stripped and "Failure information:" in stripped:
             legend_match = re.search(r"Legend\s*:\s*\[([^\]]+)\]", stripped)
             failure_match = re.search(r"Failure information:\s*(.+)", stripped)
             if legend_match and failure_match:
                 legends[legend_match.group(1).strip()] = failure_match.group(1).strip()
-                if not plist_name:
-                    plist_name = infer_plist_from_text(failure_match.group(1).strip())
+                # Priority 2: extract plist from failure info payload
+                if not plist_from_failure_info:
+                    candidate = _extract_plist_from_payload(failure_match.group(1).strip())
+                    if candidate:
+                        plist_from_failure_info = candidate
 
-    if not plist_name:
-        for failure_text in legends.values():
-            inferred = infer_plist_from_text(failure_text)
-            if inferred:
-                plist_name = inferred
-                break
+        # P3Legend format (ECADS-style legends in ituff)
+        if "2_comnt_P3Legend_" in stripped:
+            p3_match = re.search(r"2_comnt_P3Legend_([A-Z])_[^|]*\|(\d+):(.+)$", stripped)
+            if p3_match:
+                legend_char = p3_match.group(1).strip()
+                legend_description = p3_match.group(3).strip()
+                legends[legend_char] = legend_description
+                # P3Legend format: char_pattern|num:plist_name — description IS the plist
+                if not plist_from_failure_info:
+                    plist_from_failure_info = legend_description
 
-    if plist_name and plist_name.upper() == "PATMOD":
-        for failure_text in legends.values():
-            inferred = infer_plist_from_text(failure_text)
-            if inferred and inferred.upper() != "PATMOD":
-                plist_name = inferred
-                break
-
-    # Pattern-derived plist is more specific than generic Plist=[PATMOD].
-    if plist_from_patterns and (not plist_name or plist_name.upper() == "PATMOD"):
-        plist_name = plist_from_patterns
-
-    if not plist_name and shmoo_title:
-        plist_name = infer_plist_from_text(shmoo_title)
+    # Resolve plist by priority: strgval > failure_info > bracket
+    plist_name = plist_from_strgval or plist_from_failure_info or plist_from_bracket or None
 
     if axis is None or shmoo_results_data is None:
         return None
@@ -584,16 +634,14 @@ def parse_ecads_section(section: List[str], source_file: str, section_index: int
                 data_rows.append(payload[1:])
             elif payload:
                 data_rows.append(payload)
-        elif "_comnt_p3legen_" in lower:
-            legend_match = re.search(r"_comnt_p3legen_(.+)$", stripped, re.IGNORECASE)
-            payload = legend_match.group(1) if legend_match else ""
-            if "_" in payload:
-                legend_key, failure_info = payload.split("_", 1)
-                legend_key = legend_key.strip()
-                if legend_key:
-                    legends[legend_key] = failure_info.strip()
-                    if not plist_name:
-                        plist_name = infer_plist_from_text(failure_info)
+        elif "_comnt_p3legend_" in lower:
+            p3_match = re.search(r"_comnt_p3legend_([A-Z])_[^|]*\|(\d+):(.+)$", stripped, re.IGNORECASE)
+            if p3_match:
+                legend_char = p3_match.group(1).strip()
+                legend_description = p3_match.group(3).strip()
+                legends[legend_char] = legend_description
+                if not plist_name:
+                    plist_name = infer_plist_from_text(legend_description)
 
     required = [x_start, x_stop, y_start, y_stop, x_steps_count, y_steps_count]
     if any(value is None for value in required) or not data_rows:

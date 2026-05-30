@@ -1,6 +1,6 @@
 # Shmoo Parser and Report Generator
 
-Parse post-silicon shmoo data from console/log files and generate an interactive HTML visualization report.
+Parse post-silicon shmoo data from console/log files, generate an interactive HTML visualization report, and build team-filtered email report text.
 
 ## Quick Start for Common Paths
 
@@ -28,14 +28,17 @@ This repo provides a complete workflow for shmoo analysis:
 
 1. Parse raw logs into structured JSON (`shmoo_parsed.json`).
 2. Build an interactive HTML report (`shmoo_report.html`) from that JSON.
-3. Support both direct script usage and guided usage via the `@shmoo-analyzer` agent mode.
+3. Build a team-filtered email report text (`shmoo_email_report.txt`) from that JSON.
+4. Support both direct script usage and guided usage via the `@shmoo-analyzer` agent mode.
 
 ## Repository Structure
 
 - `.github/skills/shmoo-parser/scripts/shmoo_parser.py`
 - `.github/skills/shmoo-html-report/scripts/html_report.py`
+- `.github/skills/shmoo-email-report/scripts/email_report.py`
 - `.github/skills/shmoo-parser/SKILL.md`
 - `.github/skills/shmoo-html-report/SKILL.md`
+- `.github/skills/shmoo-email-report/SKILL.md`
 - `.github/agents/shmoo-analyzer.agent.md`
 - `Shmoo_Overview.pdf`
 
@@ -62,6 +65,11 @@ This repo provides a complete workflow for shmoo analysis:
 - Legend table
 - Inverted Y-axis rendering (low at bottom, high at top)
 - Long Y-label summarization for multi-variable lists in display only (JSON remains full-fidelity)
+- Generate email report text grouped by unit with:
+- Team filtering
+- PList and Die per shmoo
+- Shmoo data rows
+- Legends
 
 ## Axis Label Behavior
 
@@ -116,10 +124,19 @@ python .github/skills/shmoo-html-report/scripts/html_report.py "<output_folder>/
 
 Open `shmoo_report.html` in your browser.
 
+### 4) Generate team email report text
+
+```powershell
+python .github/skills/shmoo-email-report/scripts/email_report.py "<output_folder>/shmoo_parsed.json" --team "<TEAM>" --email "<recipient@company.com>" -o "<output_folder>/shmoo_email_report.txt"
+```
+
+If `--team` or `--email` is omitted, the script prompts for the missing value(s) and does not proceed until both are provided.
+
 ## Typical Output Files
 
 - `shmoo_parsed.json`
 - `shmoo_report.html`
+- `shmoo_email_report.txt`
 
 ## JSON Output Shape (High Level)
 
@@ -151,11 +168,13 @@ Each shmoo entry includes fields such as:
 
 The agent is configured to:
 
-1. Read parser/report skills at start.
+1. Read parser/report/email skills at start.
 2. Reuse `shmoo_parsed.json` when present (unless explicitly asked to re-parse).
 3. Parse first when JSON is missing.
 4. Generate HTML report when visualization is requested.
-5. Return required summary metrics:
+5. Generate email report text when email output is requested.
+6. Ask for `email` and `team` if missing before generating email report.
+7. Return required summary metrics:
 - files scanned
 - files with shmoo
 - total shmoos
@@ -170,6 +189,7 @@ Parse folder and generate report in place:
 ```powershell
 python .github/skills/shmoo-parser/scripts/shmoo_parser.py "I:/path/to/data" -o "I:/path/to/data/shmoo_parsed.json"
 python .github/skills/shmoo-html-report/scripts/html_report.py "I:/path/to/data/shmoo_parsed.json" -o "I:/path/to/data/shmoo_report.html"
+python .github/skills/shmoo-email-report/scripts/email_report.py "I:/path/to/data/shmoo_parsed.json" --team "SCN_SCAN" --email "recipient@company.com" -o "I:/path/to/data/shmoo_email_report.txt"
 ```
 
 ## Troubleshooting
