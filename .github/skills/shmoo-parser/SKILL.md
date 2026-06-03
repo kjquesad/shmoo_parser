@@ -26,6 +26,12 @@ Use this skill to parse shmoo data and create or reuse `shmoo_parsed.json`.
    - total shmoos
    - visual IDs found
    - shmoos per visual ID
+   - vmin_found availability per shmoo entry
+
+## Parsed Output Notes
+- Each shmoo entry includes `vmin_found` after `plist`.
+- `vmin_found` is computed by checking the center column of `failing_data.rows` from low Y to high Y and taking the first passing point (`*`).
+- If no passing point is found in the center column, `vmin_found` is `null`.
 
 ## Command Pattern
 ```powershell

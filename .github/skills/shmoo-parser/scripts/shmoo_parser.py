@@ -391,6 +391,30 @@ def build_failing_data(
     }
 
 
+def find_vmin_from_center(axis: Dict[str, float], rows: List[str]) -> Optional[float]:
+    """Find vmin by scanning the center column from low Y to high Y for first pass ('*')."""
+    if not rows:
+        return None
+
+    # Use the widest row to define the center probing column.
+    max_cols = max((len(row) for row in rows), default=0)
+    if max_cols == 0:
+        return None
+
+    center_col = max_cols // 2
+    y_values = build_axis_values(axis["ystart"], axis["ystop"], axis["ystep"])
+
+    row_count = min(len(rows), len(y_values))
+    for y_idx in range(row_count):
+        row = rows[y_idx]
+        if center_col >= len(row):
+            continue
+        if row[center_col] == "*":
+            return round(y_values[y_idx], 6)
+
+    return None
+
+
 def _extract_team_from_tname(tname: str) -> Optional[str]:
     """Extract team from tname.
 
@@ -557,12 +581,14 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
         return None
 
     failing_data = build_failing_data(shmoo_results_data, axis, legends)
+    vmin_found = find_vmin_from_center(axis, failing_data.get("rows", []))
 
     return {
         "visual_id": visual_id,
         "instance": shmoo_title,
         "team": team,
         "plist": plist_name,
+        "vmin_found": vmin_found,
         "axis": axis,
         "failing_data": failing_data,
         "legends": legends,
@@ -665,6 +691,7 @@ def parse_ecads_section(section: List[str], source_file: str, section_index: int
 
     ecads_data_string = "_".join(data_rows)
     failing_data = build_failing_data(ecads_data_string, axis, legends)
+    vmin_found = find_vmin_from_center(axis, failing_data.get("rows", []))
 
     ecads_team = _extract_team_from_tname(instance_name) if instance_name else None
 
@@ -673,6 +700,7 @@ def parse_ecads_section(section: List[str], source_file: str, section_index: int
         "instance": instance_name,
         "team": ecads_team,
         "plist": plist_name,
+        "vmin_found": vmin_found,
         "axis": axis,
         "failing_data": failing_data,
         "legends": legends,

@@ -96,6 +96,25 @@ def compute_features(matrix):
     edge_cells = total_cells - center_cells
     edge_fail_ratio = edge_fails / edge_cells if edge_cells > 0 else 0
 
+    # Vertical thirds for left/right wall detection
+    third_col = max(1, num_cols // 3)
+    left_end = third_col
+    right_start = num_cols - third_col
+
+    left_edge_fails = sum(sum(row[:left_end]) for row in matrix)
+    left_edge_cells = left_end * num_rows
+    left_edge_fail_ratio = left_edge_fails / left_edge_cells if left_edge_cells > 0 else 0
+
+    right_edge_fails = sum(sum(row[right_start:]) for row in matrix)
+    right_edge_cells = (num_cols - right_start) * num_rows
+    right_edge_fail_ratio = right_edge_fails / right_edge_cells if right_edge_cells > 0 else 0
+
+    center_band_fails = sum(sum(row[left_end:right_start]) for row in matrix)
+    center_band_cells = max(0, (right_start - left_end) * num_rows)
+    center_band_fail_ratio = (
+        center_band_fails / center_band_cells if center_band_cells > 0 else 0
+    )
+
     # Quadrant fail ratios
     q_tl_fails = sum(sum(matrix[r][:mid_col]) for r in range(mid_row, num_rows))
     q_tr_fails = sum(sum(matrix[r][mid_col:]) for r in range(mid_row, num_rows))
@@ -114,10 +133,16 @@ def compute_features(matrix):
 
     # Per-row fail ratio (for diagonal detection)
     per_row_fail_ratio = []
+    row_transitions = []
     for row in matrix:
         row_total = len(row)
         row_fails = sum(row)
         per_row_fail_ratio.append(row_fails / row_total if row_total > 0 else 0)
+        transitions = 0
+        for i in range(len(row) - 1):
+            if row[i] != row[i + 1]:
+                transitions += 1
+        row_transitions.append(transitions)
 
     # Boundary detection: find first passing column per row (left-to-right)
     # Used to detect diagonal boundaries
@@ -133,6 +158,63 @@ def compute_features(matrix):
     # Check if boundary is monotonically increasing (diagonal shape)
     is_diagonal = _check_diagonal(boundary_cols, num_cols)
 
+    # Speckled helpers: isolated fail ratio and largest fail cluster ratio
+    isolated_fails = 0
+    for r in range(num_rows):
+        for c in range(num_cols):
+            if matrix[r][c] != 1:
+                continue
+            neighbor_fails = 0
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    if dr == 0 and dc == 0:
+                        continue
+                    rr = r + dr
+                    cc = c + dc
+                    if 0 <= rr < num_rows and 0 <= cc < num_cols and matrix[rr][cc] == 1:
+                        neighbor_fails += 1
+            if neighbor_fails <= 1:
+                isolated_fails += 1
+
+    isolated_fail_ratio = isolated_fails / total_fails if total_fails > 0 else 0
+
+    visited = [[False for _ in range(num_cols)] for _ in range(num_rows)]
+    largest_cluster = 0
+
+    for r in range(num_rows):
+        for c in range(num_cols):
+            if matrix[r][c] != 1 or visited[r][c]:
+                continue
+            # Iterative DFS for 8-connected fail clusters
+            stack = [(r, c)]
+            visited[r][c] = True
+            cluster_size = 0
+            while stack:
+                cr, cc = stack.pop()
+                cluster_size += 1
+                for dr in (-1, 0, 1):
+                    for dc in (-1, 0, 1):
+                        if dr == 0 and dc == 0:
+                            continue
+                        nr = cr + dr
+                        nc = cc + dc
+                        if (
+                            0 <= nr < num_rows
+                            and 0 <= nc < num_cols
+                            and not visited[nr][nc]
+                            and matrix[nr][nc] == 1
+                        ):
+                            visited[nr][nc] = True
+                            stack.append((nr, nc))
+            if cluster_size > largest_cluster:
+                largest_cluster = cluster_size
+
+    largest_cluster_ratio = largest_cluster / total_fails if total_fails > 0 else 0
+    avg_row_transitions = (
+        sum(row_transitions) / len(row_transitions) if row_transitions else 0
+    )
+    max_row_transitions = max(row_transitions) if row_transitions else 0
+
     return {
         "total_fail_ratio": round(total_fail_ratio, 4),
         "top_fail_ratio": round(top_fail_ratio, 4),
@@ -141,11 +223,18 @@ def compute_features(matrix):
         "right_fail_ratio": round(right_fail_ratio, 4),
         "center_fail_ratio": round(center_fail_ratio, 4),
         "edge_fail_ratio": round(edge_fail_ratio, 4),
+        "left_edge_fail_ratio": round(left_edge_fail_ratio, 4),
+        "right_edge_fail_ratio": round(right_edge_fail_ratio, 4),
+        "center_band_fail_ratio": round(center_band_fail_ratio, 4),
         "q_tl_ratio": round(q_tl_ratio, 4),
         "q_tr_ratio": round(q_tr_ratio, 4),
         "q_bl_ratio": round(q_bl_ratio, 4),
         "q_br_ratio": round(q_br_ratio, 4),
         "is_diagonal": is_diagonal,
+        "isolated_fail_ratio": round(isolated_fail_ratio, 4),
+        "largest_cluster_ratio": round(largest_cluster_ratio, 4),
+        "avg_row_transitions": round(avg_row_transitions, 4),
+        "max_row_transitions": int(max_row_transitions),
         "num_rows": num_rows,
         "num_cols": num_cols,
     }
@@ -197,11 +286,18 @@ def classify_shmoo(features):
     right = features["right_fail_ratio"]
     center = features["center_fail_ratio"]
     edge = features["edge_fail_ratio"]
+    left_edge = features["left_edge_fail_ratio"]
+    right_edge = features["right_edge_fail_ratio"]
+    center_band = features["center_band_fail_ratio"]
     q_tl = features["q_tl_ratio"]
     q_tr = features["q_tr_ratio"]
     q_bl = features["q_bl_ratio"]
     q_br = features["q_br_ratio"]
     is_diag = features["is_diagonal"]
+    isolated = features["isolated_fail_ratio"]
+    largest_cluster = features["largest_cluster_ratio"]
+    avg_transitions = features["avg_row_transitions"]
+    max_transitions = features["max_row_transitions"]
 
     # 1. Red/Dead — nearly all failing
     if tfr >= 0.95:
@@ -216,27 +312,47 @@ def classify_shmoo(features):
         confidence = 0.8
         return "diagonal", confidence
 
-    # 4. Ceiling — fails at high Y (top), passes at low Y (bottom)
+    # 4. Speckled — structured trend with noisy scattered fail pattern
+    if (
+        0.10 <= tfr <= 0.90
+        and (avg_transitions >= 1.15 or max_transitions >= 4)
+        and largest_cluster <= 0.95
+        and (bot >= 0.45 or top >= 0.45)
+    ):
+        confidence = min(1.0, (avg_transitions / 2.0 + (1.0 - largest_cluster)) / 2)
+        return "speckled", round(confidence, 3)
+
+    # 5. Ceiling — fails at high Y (top), passes at low Y (bottom)
     if top >= 0.75 and bot <= 0.35 and tfr > 0.1:
         confidence = min(1.0, (top - bot))
         return "ceiling", round(confidence, 3)
 
-    # 5. Floor — fails at low Y (bottom), passes at high Y (top)
+    # 6. Floor — fails at low Y (bottom), passes at high Y (top)
     if bot >= 0.75 and top <= 0.35 and tfr > 0.1:
         confidence = min(1.0, (bot - top))
         return "floor", round(confidence, 3)
 
-    # 6. Speed limit — fails at high X (right), passes at low X (left)
+    # 7. Left wall — strong left-edge fail wall across Y
+    if left_edge >= 0.90 and right <= 0.20 and tfr > 0.15:
+        confidence = min(1.0, left_edge - right)
+        return "left wall", round(confidence, 3)
+
+    # 8. Right wall — strong right-edge fail wall across Y
+    if right_edge >= 0.90 and left <= 0.20 and tfr > 0.15:
+        confidence = min(1.0, right_edge - left)
+        return "right wall", round(confidence, 3)
+
+    # 9. Speed limit — fails at high X (right), passes at low X (left)
     if right >= 0.70 and left <= 0.35 and tfr > 0.1:
         confidence = min(1.0, (right - left))
         return "speed_limit", round(confidence, 3)
 
-    # 7. Slow limit — fails at low X (left), passes at high X (right)
+    # 10. Slow limit — fails at low X (left), passes at high X (right)
     if left >= 0.70 and right <= 0.35 and tfr > 0.1:
         confidence = min(1.0, (left - right))
         return "slow_limit", round(confidence, 3)
 
-    # 8. Corner — one quadrant dominates
+    # 11. Corner — one quadrant dominates
     quadrants = [q_tl, q_tr, q_bl, q_br]
     max_q = max(quadrants)
     others = [q for q in quadrants if q != max_q]
@@ -247,17 +363,17 @@ def classify_shmoo(features):
         confidence = min(1.0, max_q - avg_others)
         return f"corner_{corner_names[corner_idx]}", round(confidence, 3)
 
-    # 9. Crack/Island — fails in center, passes on edges
+    # 12. Crack/Island — fails in center, passes on edges
     if center >= 0.55 and edge <= 0.35 and tfr > 0.05:
         confidence = min(1.0, center - edge)
         return "crack", round(confidence, 3)
 
-    # 10. Island (inverse) — passes in center, fails on edges
+    # 13. Island (inverse) — passes in center, fails on edges
     if edge >= 0.55 and center <= 0.35 and tfr > 0.1:
         confidence = min(1.0, edge - center)
         return "island", round(confidence, 3)
 
-    # 11. Mixed/Unknown
+    # 14. Mixed/Unknown
     return "mixed", round(0.5, 3)
 
 

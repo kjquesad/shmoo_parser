@@ -241,7 +241,72 @@ XXXXXXX
 
 ---
 
-## mixed
+## left wall
+
+**Description**: One small window of passing zone but at one side theres as consistent wall of fails
+
+**Rule**: left Edge fail ratio ≥ 55% AND center and right fail ratio ≤ 35%
+
+**Typical cause**: Very limited operating window — the unit only works in a narrow V/T range.
+
+```
+XXXXXXX
+*****XX
+*****XX
+*****XX
+XXXXXXX
+```
+
+---
+
+## right wall
+
+**Description**: One small window of passing zone bu at one side theres as consistent wall of fails
+
+**Rule**: right Edge fail ratio ≥ 55% AND center and left fail ratio ≤ 35%
+
+**Typical cause**: Very limited operating window — the unit only works in a narrow V/T range.
+
+```
+XXXXXXX
+*****XX
+*****XX
+*****XX
+XXXXXXX
+```
+
+---
+
+## speckled
+
+**Description**: A mostly structured shmoo (often floor-like or diagonal-like) with scattered random fail points across otherwise passing regions. These outliers are usually isolated or tiny clusters, not a contiguous wall.
+
+**Proposed rule (robust)**:
+1. Build fail matrix `M` (1=fail, 0=pass).
+2. Compute 8-neighbor fail count for each fail cell.
+3. Define isolated fail as fail cell with <=1 failing neighbor.
+4. Connected-components on fail cells (8-connectivity) to get largest fail cluster.
+5. Classify `speckled` when all are true:
+  - `0.10 <= total_fail_ratio <= 0.75`
+  - `isolated_fail_ratio >= 0.30` (isolated fails / total fails)
+  - `largest_cluster_ratio <= 0.55` (largest fail component / total fails)
+  - At least one structured trend exists (`bot_fail_ratio >= 0.50` OR diagonal consistency >= 0.60)
+
+**Why this works**: It separates noisy scatter from contiguous categories like `floor`, `ceiling`, `speed_limit`, `corner_*`, and `crack`.
+
+**Typical cause**: Marginal timing/voltage behavior with local instability, intermittent bit-level sensitivity, or test noise superimposed on a real operating boundary.
+
+```
+***X***   ← high voltage (passes)
+*X***XX
+***X***
+XXXXXXX
+XXXXXXX   ← low voltage (fails)
+```
+
+---
+
+## miscellaneous (mixed)
 
 **Description**: The failure pattern doesn't match any of the above categories. The spatial distribution is ambiguous or combines multiple patterns.
 
@@ -265,6 +330,9 @@ XXXXXXX
 | corner_* | Single quadrant | max quadrant - avg others |
 | crack | Center region | center - edge ratio |
 | island | Edge region | edge - center ratio |
+| left wall | Left edge wall | left edge - (center+right) |
+| right wall | Right edge wall | right edge - (center+left) |
+| speckled | Scatter + structure | isolated fail ratio + largest cluster ratio |
 | mixed | No clear pattern | 0.5 (default) |
 
 ---
@@ -276,5 +344,5 @@ All thresholds are defined in `shmoo_classifier.py` → `classify_shmoo()`. To a
 - **Lower a threshold** → more shmoos get classified into that category (more permissive)
 - **Raise a threshold** → fewer shmoos match, more fall into "mixed" (more strict)
 
-Priority order matters — the first matching rule wins. Current priority:
-1. red → 2. clean → 3. diagonal → 4. ceiling → 5. floor → 6. speed_limit → 7. slow_limit → 8. corner → 9. crack → 10. island → 11. mixed
+Priority order matters — the first matching rule wins. Current implementation priority:
+1. red -> 2. clean -> 3. diagonal -> 4. speckled -> 5. ceiling -> 6. floor -> 7. left wall -> 8. right wall -> 9. speed_limit -> 10. slow_limit -> 11. corner -> 12. crack -> 13. island -> 14. mixed

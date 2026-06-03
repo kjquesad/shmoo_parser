@@ -76,6 +76,7 @@ def slim_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
         "instance": instance,
         "team": team,
         "plist": entry.get("plist"),
+        "vmin_found": entry.get("vmin_found"),
         "source_file": entry.get("source_file"),
         "axis": entry.get("axis") if isinstance(entry.get("axis"), dict) else {},
         "legends": entry.get("legends") if isinstance(entry.get("legends"), dict) else {},
@@ -122,6 +123,8 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 .class-tag.slow_limit{background:#dbeafe;color:#1e40af}.class-tag.crack{background:#fce7f3;color:#9d174d}
 .class-tag.island{background:#ccfbf1;color:#134e4a}.class-tag.mixed{background:#f3f4f6;color:#374151}
 .class-tag.corner_top_left,.class-tag.corner_top_right,.class-tag.corner_bottom_left,.class-tag.corner_bottom_right{background:#fff7ed;color:#9a3412}
+.class-tag.left_wall,.class-tag.right_wall{background:#e2f4ff;color:#0b4f73}
+.class-tag.speckled{background:#fef9c3;color:#854d0e}
 .meta-item.classification .v{font-weight:600}
 .main{flex:1;overflow-y:auto;padding:16px}
 .panel{background:#fff;border:1px solid #d4ddd8;border-radius:10px;padding:14px;margin-bottom:12px}
@@ -136,6 +139,9 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 #shmoo-grid td{width:24px;height:24px;text-align:center;font-size:13px;font-family:Consolas,monospace;border:1px solid #e8ede9}
 #shmoo-grid td.pass{background:#b7e4c7;color:#155d27}
 #shmoo-grid td.fail{color:#fff}
+#point-selected{margin-top:8px;background:#f7faf8;border:1px solid #e0ebe5;border-radius:6px;padding:8px 10px;font-size:.82rem;color:#1f3a31}
+#point-selected .title{font-weight:700;margin-bottom:4px;color:#1a3b2e}
+#point-selected .empty{padding:0;text-align:left}
 .legend-tbl{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:6px}
 .legend-tbl th,.legend-tbl td{border:1px solid #dde5dd;padding:5px 7px;text-align:left}
 .legend-tbl th{background:#f2f7f3}
@@ -160,7 +166,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   </aside>
   <div class="main">
     <div class="panel"><h2>Metadata</h2><div class="meta-grid" id="meta-panel"></div></div>
-    <div class="panel"><h2>Shmoo Visualization</h2><div id="shmoo-grid"></div></div>
+    <div class="panel"><h2>Shmoo Visualization</h2><div id="shmoo-grid"></div><div id="point-selected"><div class="title">Point Selected</div><div class="empty">Click a failing point in the grid to inspect it.</div></div></div>
     <div class="panel"><h2>Legend</h2><div id="legend-panel"></div></div>
   </div>
 </div>
@@ -183,6 +189,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   var cardList = document.getElementById("card-list");
   var metaPanel = document.getElementById("meta-panel");
   var shmooGrid = document.getElementById("shmoo-grid");
+  var pointSelected = document.getElementById("point-selected");
   var legendPanel = document.getElementById("legend-panel");
   var searchBox = document.getElementById("search");
   var teamFilter = document.getElementById("team-filter");
@@ -228,6 +235,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   function esc(v){ return (v === null || v === undefined || v === "") ? "-" : String(v); }
   function shortFile(v){ if(!v) return "-"; var p=v.replace(/\\\\/g,"/").split("/"); return p[p.length-1] || v; }
   function getColor(sym, idx){ return sym === "*" ? "#b7e4c7" : COLORS[idx % COLORS.length]; }
+  function categoryClassName(cat){ return (cat || "").toLowerCase().replace(/\\s+/g, "_"); }
 
   function renderCards(){
     if (!filtered.length) {
@@ -256,10 +264,11 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
         var cls = idx === selectedIdx ? "card active" : "card";
         html += '<div class="' + cls + '" data-idx="' + idx + '">';
         var clCat = (e.classification && e.classification.category) ? e.classification.category : '';
+        var clCatClass = categoryClassName(clCat);
         var clConf = (e.classification && e.classification.confidence) ? (e.classification.confidence * 100).toFixed(0) + '%' : '';
         html += '<div class="inst">' + esc(e.instance) + '</div>';
         html += '<span class="team-tag">' + esc(e.team) + '</span>';
-        if (clCat) { html += '<span class="class-tag ' + clCat + '">' + clCat + (clConf ? ' ' + clConf : '') + '</span>'; }
+        if (clCat) { html += '<span class="class-tag ' + clCatClass + '">' + clCat + (clConf ? ' ' + clConf : '') + '</span>'; }
         html += '</div>';
       }
       html += '</div>';
@@ -280,6 +289,8 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   function renderMeta(e){
     var clInfo = e.classification;
     var clText = clInfo ? clInfo.category + ' (' + ((clInfo.confidence||0)*100).toFixed(0) + '% confidence)' : 'unclassified';
+    var xRange = esc(e.axis.xstart) + " to " + esc(e.axis.xstop) + " step " + esc(e.axis.xstep);
+    var yRange = esc(e.axis.ystart) + " to " + esc(e.axis.ystop) + " step " + esc(e.axis.ystep);
     var items = [
       ["Visual ID", e.visual_id],
       ["Team", e.team],
@@ -287,17 +298,23 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
       ["Die ID", e.die_id],
       ["Instance", e.instance],
       ["PList", e.plist],
+      ["Vmin Found", e.vmin_found],
       ["Source", shortFile(e.source_file)],
-      ["X", esc(e.axis.xstart) + " to " + esc(e.axis.xstop) + " step " + esc(e.axis.xstep)],
-      ["Y", esc(e.axis.ystart) + " to " + esc(e.axis.ystop) + " step " + esc(e.axis.ystep)]
+      ["X", {label: e.axis.xlabel, range: xRange}],
+      ["Y", {label: e.axis.ylabel, range: yRange}]
     ];
 
     var html = "";
     for (var i = 0; i < items.length; i++) {
       var key = items[i][0];
+      var value = items[i][1];
       var cls = (key === "Instance" || key === "PList") ? "meta-item wide" : "meta-item";
       if (key === "Classification") cls = "meta-item classification";
-      html += '<div class="' + cls + '"><div class="k">' + key + '</div><div class="v">' + esc(items[i][1]) + '</div></div>';
+      if ((key === "X" || key === "Y") && value && typeof value === "object") {
+        html += '<div class="' + cls + '"><div class="k">' + key + '</div><div class="v">' + esc(value.label) + '<br>' + esc(value.range) + '</div></div>';
+      } else {
+        html += '<div class="' + cls + '"><div class="k">' + key + '</div><div class="v">' + esc(value) + '</div></div>';
+      }
     }
     metaPanel.innerHTML = html;
   }
@@ -306,6 +323,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     var rows = e.rows || [];
     if (!rows.length) {
       shmooGrid.innerHTML = '<div class="empty">No shmoo row data.</div>';
+      pointSelected.innerHTML = '<div class="title">Point Selected</div><div class="empty">Click a failing point in the grid to inspect it.</div>';
       return;
     }
 
@@ -343,13 +361,37 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
           html += '<td class="pass">*</td>';
         } else {
           var bg = getColor(ch, symbolIdx[ch] || 0);
-          html += '<td class="fail" style="background:' + bg + '">' + ch + '</td>';
+          var xValCell = (xStart + x2 * xStep).toFixed(6);
+          var yValCell = (yStart + y * yStep).toFixed(6);
+          html += '<td class="fail" data-xidx="' + x2 + '" data-yidx="' + y + '" data-x="' + xValCell + '" data-y="' + yValCell + '" data-symbol="' + ch + '" style="background:' + bg + '">' + ch + '</td>';
         }
       }
       html += '</tr>';
     }
     html += '</table>';
     shmooGrid.innerHTML = html;
+
+    pointSelected.innerHTML = '<div class="title">Point Selected</div><div class="empty">Click a failing point in the grid to inspect it.</div>';
+
+    var failCells = shmooGrid.querySelectorAll('td.fail');
+    for (var f = 0; f < failCells.length; f++) {
+      failCells[f].addEventListener('click', function(){
+        var xidx = this.getAttribute('data-xidx');
+        var yidx = this.getAttribute('data-yidx');
+        var xval = this.getAttribute('data-x');
+        var yval = this.getAttribute('data-y');
+        var symbol = this.getAttribute('data-symbol');
+        var failInfo = (e.legends && e.legends[symbol]) ? e.legends[symbol] : '-';
+
+        pointSelected.innerHTML =
+          '<div class="title">Point Selected</div>' +
+          '<div><b>Symbol:</b> ' + esc(symbol) + '</div>' +
+          '<div><b>Grid Index:</b> x=' + esc(xidx) + ', y=' + esc(yidx) + '</div>' +
+          '<div><b>X Value:</b> ' + esc(xval) + '</div>' +
+          '<div><b>Y Value:</b> ' + esc(yval) + '</div>' +
+          '<div><b>Failure Info:</b> ' + esc(failInfo) + '</div>';
+      });
+    }
   }
 
   function renderLegend(e){
@@ -372,6 +414,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     if (!filtered.length) {
       metaPanel.innerHTML = '<div class="empty">No shmoo selected.</div>';
       shmooGrid.innerHTML = '';
+      pointSelected.innerHTML = '<div class="title">Point Selected</div><div class="empty">No shmoo selected.</div>';
       legendPanel.innerHTML = '';
       return;
     }
