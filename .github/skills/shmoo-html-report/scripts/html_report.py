@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import webbrowser
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -77,6 +78,12 @@ def slim_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
         "team": team,
         "plist": entry.get("plist"),
         "vmin_found": entry.get("vmin_found"),
+      "vmin_status": entry.get("vmin_status"),
+      "vmin_expected_mv": entry.get("vmin_expected_mv"),
+      "vmin_found_mv": entry.get("vmin_found_mv"),
+      "vmin_delta_mv": entry.get("vmin_delta_mv"),
+      "vmin_expected_rail": entry.get("vmin_expected_rail"),
+      "vmin_expected_freq": entry.get("vmin_expected_freq"),
         "source_file": entry.get("source_file"),
         "axis": entry.get("axis") if isinstance(entry.get("axis"), dict) else {},
         "legends": entry.get("legends") if isinstance(entry.get("legends"), dict) else {},
@@ -117,6 +124,10 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 .card .inst{font-size:.78rem;color:#2a4a40;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card .team-tag{display:inline-block;font-size:.68rem;background:#e0ebe5;border-radius:3px;padding:1px 5px;color:#2a5e48;margin-top:2px}
 .card .class-tag{display:inline-block;font-size:.68rem;border-radius:3px;padding:1px 5px;margin-top:2px;margin-left:4px;font-weight:600}
+.card .vmin-tag{display:inline-block;font-size:.68rem;border-radius:3px;padding:1px 5px;margin-top:2px;margin-left:4px;font-weight:700}
+.vmin-tag.high{background:#ffe5e5;color:#9f1239}
+.vmin-tag.ok{background:#dcfce7;color:#166534}
+.vmin-tag.missing_found,.vmin-tag.no_expected_match,.vmin-tag.unknown{background:#f3f4f6;color:#374151}
 .class-tag.red{background:#fde2e2;color:#b91c1c}.class-tag.clean{background:#d1fae5;color:#065f46}
 .class-tag.ceiling{background:#fef3c7;color:#92400e}.class-tag.floor{background:#e0e7ff;color:#3730a3}
 .class-tag.diagonal{background:#ede9fe;color:#5b21b6}.class-tag.speed_limit{background:#fee2e2;color:#991b1b}
@@ -157,6 +168,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     <select id="team-filter"><option value="">All Teams</option></select>
     <select id="unit-filter"><option value="">All Units</option></select>
     <select id="class-filter"><option value="">All Classifications</option></select>
+    <select id="vmin-filter"><option value="">All Vmin Status</option></select>
     <input id="search" placeholder="Search instance, plist..." />
   </div>
 </header>
@@ -184,7 +196,8 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   var hdrInfo = document.getElementById("hdr-info");
   hdrInfo.textContent = "Total shmoos: " + entries.length +
     " | Visual IDs: " + (meta.visual_id_count || "-") +
-    " | Files scanned: " + (meta.files_scanned || "-");
+    " | Files scanned: " + (meta.files_scanned || "-") +
+    " | High Vmin: " + (meta.high_vmin_count || 0);
 
   var cardList = document.getElementById("card-list");
   var metaPanel = document.getElementById("meta-panel");
@@ -196,15 +209,18 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   var unitFilter = document.getElementById("unit-filter");
 
   var classFilter = document.getElementById("class-filter");
+  var vminFilter = document.getElementById("vmin-filter");
 
   var teamSet = {};
   var unitSet = {};
   var classSet = {};
+  var vminSet = {};
   for (var i = 0; i < entries.length; i++) {
     teamSet[entries[i].team || "UNKNOWN"] = true;
     unitSet[entries[i].visual_id || "NO_VISUAL_ID"] = true;
     var cl = entries[i].classification;
     classSet[cl && cl.category ? cl.category : "unclassified"] = true;
+    vminSet[deriveVminStatus(entries[i])] = true;
   }
 
   Object.keys(teamSet).sort().forEach(function(team){
@@ -228,6 +244,13 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     classFilter.appendChild(opt);
   });
 
+  Object.keys(vminSet).sort().forEach(function(vs){
+    var opt = document.createElement("option");
+    opt.value = vs;
+    opt.textContent = vs;
+    vminFilter.appendChild(opt);
+  });
+
   var filtered = entries.slice();
   var selectedIdx = 0;
   var COLORS = ["#e76f51","#f4a261","#e9c46a","#2a9d8f","#457b9d","#f72585","#4361ee","#7209b7","#ef476f","#06d6a0","#ff7f11","#1d3557","#8ecae6","#e63946","#fb8500"];
@@ -236,6 +259,22 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   function shortFile(v){ if(!v) return "-"; var p=v.replace(/\\\\/g,"/").split("/"); return p[p.length-1] || v; }
   function getColor(sym, idx){ return sym === "*" ? "#b7e4c7" : COLORS[idx % COLORS.length]; }
   function categoryClassName(cat){ return (cat || "").toLowerCase().replace(/\\s+/g, "_"); }
+  function vminClassName(status){ return (status || "unknown").toLowerCase().replace(/\\s+/g, "_"); }
+  function formatVminDisplay(vminFound, vminStatus){
+    var raw = vminFound ? String(vminFound) : "";
+    raw = raw.replace(/^Vmin Found(?: \\(High\\))?:\\s*/i, "");
+    if (!raw) raw = "N/A";
+    if (vminStatus === "high") return "High: " + raw;
+    if (vminStatus === "ok") return "OK: " + raw;
+    return raw;
+  }
+  function deriveVminStatus(e){
+    if (e.vmin_status) return String(e.vmin_status);
+    var vf = e.vmin_found ? String(e.vmin_found).toLowerCase() : "";
+    if (vf.indexOf("(high)") !== -1) return "high";
+    if (vf.indexOf("vmin found") !== -1) return "ok";
+    return "unknown";
+  }
 
   function renderCards(){
     if (!filtered.length) {
@@ -266,9 +305,12 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
         var clCat = (e.classification && e.classification.category) ? e.classification.category : '';
         var clCatClass = categoryClassName(clCat);
         var clConf = (e.classification && e.classification.confidence) ? (e.classification.confidence * 100).toFixed(0) + '%' : '';
+        var vmStat = deriveVminStatus(e);
+        var vmClass = vminClassName(vmStat);
         html += '<div class="inst">' + esc(e.instance) + '</div>';
         html += '<span class="team-tag">' + esc(e.team) + '</span>';
         if (clCat) { html += '<span class="class-tag ' + clCatClass + '">' + clCat + (clConf ? ' ' + clConf : '') + '</span>'; }
+        if (vmStat && vmStat !== 'unknown') { html += '<span class="vmin-tag ' + vmClass + '">VMIN ' + esc(vmStat.toUpperCase()) + '</span>'; }
         html += '</div>';
       }
       html += '</div>';
@@ -289,16 +331,24 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   function renderMeta(e){
     var clInfo = e.classification;
     var clText = clInfo ? clInfo.category + ' (' + ((clInfo.confidence||0)*100).toFixed(0) + '% confidence)' : 'unclassified';
+    var vminStatus = deriveVminStatus(e);
+    var vminDisplay = formatVminDisplay(e.vmin_found, vminStatus);
     var xRange = esc(e.axis.xstart) + " to " + esc(e.axis.xstop) + " step " + esc(e.axis.xstep);
     var yRange = esc(e.axis.ystart) + " to " + esc(e.axis.ystop) + " step " + esc(e.axis.ystep);
     var items = [
       ["Visual ID", e.visual_id],
       ["Team", e.team],
       ["Classification", clText],
+      ["Vmin Status", vminStatus],
       ["Die ID", e.die_id],
       ["Instance", e.instance],
       ["PList", e.plist],
-      ["Vmin Found", e.vmin_found],
+      ["Vmin Found", vminDisplay],
+      ["Vmin Expected (mV)", e.vmin_expected_mv],
+      ["Vmin Found (mV)", e.vmin_found_mv],
+      ["Vmin Delta (mV)", e.vmin_delta_mv],
+      ["Vmin Rail", e.vmin_expected_rail],
+      ["Vmin Freq", e.vmin_expected_freq],
       ["Source", shortFile(e.source_file)],
       ["X", {label: e.axis.xlabel, range: xRange}],
       ["Y", {label: e.axis.ylabel, range: yRange}]
@@ -428,6 +478,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     var teamVal = teamFilter.value;
     var unitVal = unitFilter.value;
     var classVal = classFilter.value;
+    var vminVal = vminFilter.value;
     var q = searchBox.value.trim().toLowerCase();
 
     filtered = [];
@@ -439,8 +490,22 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
         var eCat = (e.classification && e.classification.category) ? e.classification.category : "unclassified";
         if (eCat !== classVal) continue;
       }
+      if (vminVal) {
+        if (deriveVminStatus(e) !== vminVal) continue;
+      }
       if (q) {
-        var hay = [e.visual_id, e.instance, e.plist, e.die_id, e.source_file, e.team].join(' ').toLowerCase();
+        var hay = [
+          e.visual_id,
+          e.instance,
+          e.plist,
+          e.die_id,
+          e.source_file,
+          e.team,
+          e.vmin_found,
+          e.vmin_status,
+          e.vmin_expected_rail,
+          e.vmin_expected_freq
+        ].join(' ').toLowerCase();
         if (hay.indexOf(q) === -1) continue;
       }
       filtered.push(e);
@@ -453,6 +518,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   teamFilter.addEventListener('change', applyFilter);
   unitFilter.addEventListener('change', applyFilter);
   classFilter.addEventListener('change', applyFilter);
+  vminFilter.addEventListener('change', applyFilter);
   searchBox.addEventListener('input', applyFilter);
   renderCards();
 })();
@@ -468,6 +534,13 @@ def main() -> None:
     parser.add_argument("input_json", help="Path to shmoo_parsed.json")
     parser.add_argument("-o", "--output", default="shmoo_report.html", help="Output HTML path")
     parser.add_argument("--visual-id", default="", help="Optional filter to a specific visual ID / unit")
+    parser.add_argument(
+        "--open",
+        dest="open_report",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Open the generated report in the default web browser (default: enabled)",
+    )
     args = parser.parse_args()
 
     input_json = Path(args.input_json)
@@ -489,6 +562,14 @@ def main() -> None:
         "files_with_shmoo": payload.get("files_with_shmoo"),
         "total_shmoos": len(slim_entries),
         "visual_id_count": len({entry.get("visual_id") or "NO_VISUAL_ID" for entry in slim_entries}),
+      "high_vmin_count": len(
+        [
+          entry
+          for entry in slim_entries
+          if str(entry.get("vmin_status") or "").lower() == "high"
+          or "(high)" in str(entry.get("vmin_found") or "").lower()
+        ]
+      ),
         "path_folder": payload.get("path_folder"),
         "filter_visual_id": args.visual_id or None,
     }
@@ -499,6 +580,13 @@ def main() -> None:
 
     print(f"Done. {len(slim_entries)} shmoo(s), {meta['visual_id_count']} visual ID(s).")
     print(f"Report: {output_html}")
+
+    if args.open_report:
+        report_uri = output_html.resolve().as_uri()
+        if webbrowser.open(report_uri):
+            print("Opened report in default browser.")
+        else:
+            print("Report generated, but browser could not be launched automatically.")
 
 
 if __name__ == "__main__":

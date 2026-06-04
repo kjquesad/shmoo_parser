@@ -28,12 +28,16 @@ This repo provides a complete workflow for shmoo analysis:
 
 1. Parse raw logs into structured JSON (`shmoo_parsed.json`).
 2. Build an interactive HTML report (`shmoo_report.html`) from that JSON.
-3. Build a team-filtered email report text (`shmoo_email_report.txt`) from that JSON.
-4. Support both direct script usage and guided usage via the `@shmoo-analyzer` agent mode.
+3. Classify shmoo shapes (`shmoo_classified.json`) from parsed JSON.
+4. Compare `vmin_found` against expected Vmin database and tag high Vmin entries.
+5. Build a team-filtered email report text (`shmoo_email_report.txt`) from that JSON.
+6. Support both direct script usage and guided usage via the `@shmoo-analyzer` agent mode.
 
 ## Repository Structure
 
 - `.github/skills/shmoo-parser/scripts/shmoo_parser.py`
+- `.github/skills/shmoo-classifier/scripts/shmoo_classifier.py`
+- `.github/skills/vmin_detector/scripts/vmin_detector.py`
 - `.github/skills/shmoo-html-report/scripts/html_report.py`
 - `.github/skills/shmoo-email-report/scripts/email_report.py`
 - `.github/skills/shmoo-parser/SKILL.md`
@@ -70,6 +74,21 @@ This repo provides a complete workflow for shmoo analysis:
 - PList and Die per shmoo
 - Shmoo data rows
 - Legends
+
+## Vmin Detector
+
+Use `vmin_detector.py` to compare shmoo `vmin_found` values against an expected Vmin JSON database and rewrite `vmin_found` as tagged text:
+
+- `Vmin Found: <value>`
+- `Vmin Found (High): <value>` when found Vmin is higher than expected.
+
+It also adds trace fields such as `vmin_status`, `vmin_expected_mv`, `vmin_found_mv`, and `vmin_delta_mv`.
+
+Command example:
+
+```powershell
+python .github/skills/vmin_detector/scripts/vmin_detector.py "<input_shmoo_json>" "<expected_vmin_json>" -o "<output_json>" --plist "<optional_plist_filter>" --visual-id "<optional_visual_id_filter>"
+```
 
 ## Axis Label Behavior
 

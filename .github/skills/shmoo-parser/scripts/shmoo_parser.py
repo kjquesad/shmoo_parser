@@ -748,7 +748,32 @@ def parse_file(file_path: Path) -> List[Dict[str, Any]]:
     return parsed
 
 
-def parse_inputs(input_path: Path, recursive: bool) -> Dict[str, Any]:
+def _parse_filter_tokens(team_filter: str) -> List[str]:
+    """Split free-form team filter text into normalized tokens."""
+    if not team_filter:
+        return []
+    tokens = re.split(r"[\s,;|]+", team_filter.strip())
+    return [token.upper() for token in tokens if token.strip()]
+
+
+def _entry_matches_team_filter(entry: Dict[str, Any], team_filter: str) -> bool:
+    """Return True when all team-filter tokens are present in team/instance/plist context."""
+    tokens = _parse_filter_tokens(team_filter)
+    if not tokens:
+        return True
+
+    context = " ".join(
+        [
+            str(entry.get("team") or ""),
+            str(entry.get("instance") or ""),
+            str(entry.get("plist") or ""),
+        ]
+    ).upper()
+
+    return all(token in context for token in tokens)
+
+
+def parse_inputs(input_path: Path, recursive: bool, team_filter: str = "") -> Dict[str, Any]:
     """Parse all supported input files and return one JSON object."""
     files = find_input_files(input_path, recursive)
 
@@ -758,6 +783,8 @@ def parse_inputs(input_path: Path, recursive: bool) -> Dict[str, Any]:
 
     for file_path in files:
         parsed = parse_file(file_path)
+        if team_filter:
+            parsed = [entry for entry in parsed if _entry_matches_team_filter(entry, team_filter)]
         if parsed:
             files_with_shmoo += 1
             source_file = str(file_path)
@@ -772,6 +799,7 @@ def parse_inputs(input_path: Path, recursive: bool) -> Dict[str, Any]:
         "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "path_folder": str(input_path),
         "recursive": recursive,
+        "team_filter": team_filter or None,
         "files_scanned": len(files),
         "files_with_shmoo": files_with_shmoo,
         "total_shmoos": total_shmoos,
@@ -807,18 +835,28 @@ def main() -> None:
         action="store_true",
         help="Recursively scan subfolders when input is a directory.",
     )
+    parser.add_argument(
+        "--team-filter",
+        default="",
+        help=(
+            "Optional team filter text. Entries are kept only when all tokens are present in "
+            "team/instance/plist (examples: 'SCN', 'SCN CBB', 'SCN IMH')."
+        ),
+    )
 
     args = parser.parse_args()
 
     input_path = Path(args.input).resolve()
     output_path = Path(args.output).resolve()
 
-    payload = parse_inputs(input_path, args.recursive)
+    payload = parse_inputs(input_path, args.recursive, args.team_filter)
     write_json(output_path, payload)
 
     print(
         f"Done. Scanned {payload['files_scanned']} file(s), found {payload['total_shmoos']} shmoo section(s)."
     )
+    if args.team_filter:
+        print(f"Applied team filter: {args.team_filter}")
     print(f"JSON written to: {output_path}")
 
 
