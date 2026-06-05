@@ -64,12 +64,42 @@ def infer_team(instance: str) -> str:
     return "UNKNOWN"
 
 
+def normalize_classification(entry: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize classification into a stable shape."""
+    raw = entry.get("classification")
+    if isinstance(raw, dict):
+        category = str(raw.get("category") or "").strip()
+        confidence = raw.get("confidence")
+        out: Dict[str, Any] = {
+            "category": category or "unclassified",
+            "confidence": confidence if isinstance(confidence, (int, float)) else None,
+        }
+        if isinstance(raw.get("features"), dict):
+            out["features"] = raw.get("features")
+        return out
+
+    if isinstance(raw, str) and raw.strip():
+        return {"category": raw.strip(), "confidence": None}
+
+    # Fallback support for alternate keys.
+    alt = str(entry.get("classification_category") or entry.get("class") or "").strip()
+    if alt:
+        conf = entry.get("classification_confidence")
+        return {
+            "category": alt,
+            "confidence": conf if isinstance(conf, (int, float)) else None,
+        }
+
+    return {"category": "unclassified", "confidence": None}
+
+
 def slim_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
     """Keep only fields needed by the report."""
     failing_data = entry.get("failing_data") if isinstance(entry.get("failing_data"), dict) else {}
     instance = entry.get("instance") or ""
     team = entry.get("team") or infer_team(instance)
-    classification = entry.get("classification") if isinstance(entry.get("classification"), dict) else None
+    classification = normalize_classification(entry)
+    tags = entry.get("tags") if isinstance(entry.get("tags"), list) else []
 
     return {
         "visual_id": entry.get("visual_id"),
@@ -78,18 +108,100 @@ def slim_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
         "team": team,
         "plist": entry.get("plist"),
         "vmin_found": entry.get("vmin_found"),
-      "vmin_status": entry.get("vmin_status"),
-      "vmin_expected_mv": entry.get("vmin_expected_mv"),
-      "vmin_found_mv": entry.get("vmin_found_mv"),
-      "vmin_delta_mv": entry.get("vmin_delta_mv"),
-      "vmin_expected_rail": entry.get("vmin_expected_rail"),
-      "vmin_expected_freq": entry.get("vmin_expected_freq"),
+        "vmin_status": entry.get("vmin_status"),
+        "vmin_expected_mv": entry.get("vmin_expected_mv"),
+        "vmin_found_mv": entry.get("vmin_found_mv"),
+        "vmin_delta_mv": entry.get("vmin_delta_mv"),
+        "vmin_expected_rail": entry.get("vmin_expected_rail"),
+        "vmin_expected_freq": entry.get("vmin_expected_freq"),
+        "vmin_tag": entry.get("vmin_tag"),
+        "high_vmin": entry.get("high_vmin"),
+        "vmin_is_high": entry.get("vmin_is_high"),
         "source_file": entry.get("source_file"),
         "axis": entry.get("axis") if isinstance(entry.get("axis"), dict) else {},
         "legends": entry.get("legends") if isinstance(entry.get("legends"), dict) else {},
         "rows": failing_data.get("rows") if isinstance(failing_data.get("rows"), list) else [],
         "classification": classification,
+        "classification_category": classification.get("category"),
+        "classification_confidence": classification.get("confidence"),
+        "tags": tags,
     }
+
+
+def normalize_vmin_status(entry: Dict[str, Any]) -> str:
+    """Normalize vmin status from explicit field or tagged text."""
+    status = str(entry.get("vmin_status") or "").strip().lower()
+    if status:
+        return status
+
+    vmin_tag = str(entry.get("vmin_tag") or "").strip().lower()
+    if vmin_tag in {"high", "ok", "missing_found", "no_expected_match", "unknown"}:
+        return vmin_tag
+
+    found = str(entry.get("vmin_found") or "").lower()
+    if bool(entry.get("high_vmin")) or bool(entry.get("vmin_is_high")):
+        return "high"
+
+    tags = entry.get("tags")
+    if isinstance(tags, list):
+        tag_set = {str(t).strip().lower() for t in tags}
+        if any(t in tag_set for t in {"high_vmin", "vmin_high", "high"}):
+            return "high"
+
+    if "(high)" in found:
+        return "high"
+    if "vmin found" in found:
+        return "ok"
+    return "unknown"
+
+
+def apply_entry_filters(
+    entries: List[Dict[str, Any]],
+    team: str,
+    plist_contains: str,
+    search_text: str,
+    vmin_status: str,
+    limit: int,
+) -> List[Dict[str, Any]]:
+    """Apply optional CLI filters before generating the report."""
+    team_norm = team.strip().lower()
+    plist_norm = plist_contains.strip().lower()
+    search_norm = search_text.strip().lower()
+    vmin_norm = vmin_status.strip().lower()
+
+    filtered: List[Dict[str, Any]] = []
+    for entry in entries:
+        if team_norm and str(entry.get("team") or infer_team(str(entry.get("instance") or ""))).lower() != team_norm:
+            continue
+        if plist_norm and plist_norm not in str(entry.get("plist") or "").lower():
+            continue
+        if vmin_norm and normalize_vmin_status(entry) != vmin_norm:
+            continue
+        if search_norm:
+            haystack = " ".join(
+                [
+                    str(entry.get("visual_id") or ""),
+                    str(entry.get("instance") or ""),
+                    str(entry.get("plist") or ""),
+                    str(entry.get("die_id") or ""),
+                    str(entry.get("source_file") or ""),
+                    str(entry.get("team") or ""),
+                    str(entry.get("vmin_found") or ""),
+                    str(entry.get("vmin_status") or ""),
+                    str(entry.get("vmin_tag") or ""),
+                    str(entry.get("vmin_expected_rail") or ""),
+                    str(entry.get("vmin_expected_freq") or ""),
+                    str(entry.get("classification_category") or ""),
+                    " ".join(str(t) for t in (entry.get("tags") or [])),
+                ]
+            ).lower()
+            if search_norm not in haystack:
+                continue
+        filtered.append(entry)
+
+    if limit > 0:
+        return filtered[:limit]
+    return filtered
 
 
 def build_html(entries: List[Dict[str, Any]], meta: Dict[str, Any]) -> str:
@@ -219,7 +331,8 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     teamSet[entries[i].team || "UNKNOWN"] = true;
     unitSet[entries[i].visual_id || "NO_VISUAL_ID"] = true;
     var cl = entries[i].classification;
-    classSet[cl && cl.category ? cl.category : "unclassified"] = true;
+    var clCat = entries[i].classification_category || (cl && cl.category ? cl.category : "unclassified");
+    classSet[clCat || "unclassified"] = true;
     vminSet[deriveVminStatus(entries[i])] = true;
   }
 
@@ -269,7 +382,18 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     return raw;
   }
   function deriveVminStatus(e){
-    if (e.vmin_status) return String(e.vmin_status);
+    if (e.vmin_status) return String(e.vmin_status).toLowerCase();
+    if (e.vmin_tag) {
+      var t = String(e.vmin_tag).toLowerCase();
+      if (t === "high" || t === "ok" || t === "missing_found" || t === "no_expected_match" || t === "unknown") return t;
+    }
+    if (e.high_vmin === true || e.vmin_is_high === true) return "high";
+    if (Array.isArray(e.tags)) {
+      for (var ti = 0; ti < e.tags.length; ti++) {
+        var tg = String(e.tags[ti] || "").toLowerCase();
+        if (tg === "high_vmin" || tg === "vmin_high" || tg === "high") return "high";
+      }
+    }
     var vf = e.vmin_found ? String(e.vmin_found).toLowerCase() : "";
     if (vf.indexOf("(high)") !== -1) return "high";
     if (vf.indexOf("vmin found") !== -1) return "ok";
@@ -302,9 +426,12 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
         var idx = items[j].idx;
         var cls = idx === selectedIdx ? "card active" : "card";
         html += '<div class="' + cls + '" data-idx="' + idx + '">';
-        var clCat = (e.classification && e.classification.category) ? e.classification.category : '';
+        var clCat = e.classification_category || ((e.classification && e.classification.category) ? e.classification.category : '');
         var clCatClass = categoryClassName(clCat);
-        var clConf = (e.classification && e.classification.confidence) ? (e.classification.confidence * 100).toFixed(0) + '%' : '';
+        var confRaw = (e.classification_confidence !== null && e.classification_confidence !== undefined)
+          ? e.classification_confidence
+          : ((e.classification && e.classification.confidence !== undefined) ? e.classification.confidence : null);
+        var clConf = (typeof confRaw === 'number') ? (confRaw * 100).toFixed(0) + '%' : '';
         var vmStat = deriveVminStatus(e);
         var vmClass = vminClassName(vmStat);
         html += '<div class="inst">' + esc(e.instance) + '</div>';
@@ -330,7 +457,14 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 
   function renderMeta(e){
     var clInfo = e.classification;
-    var clText = clInfo ? clInfo.category + ' (' + ((clInfo.confidence||0)*100).toFixed(0) + '% confidence)' : 'unclassified';
+    var clCat = e.classification_category || (clInfo && clInfo.category ? clInfo.category : 'unclassified');
+    var confRaw = (e.classification_confidence !== null && e.classification_confidence !== undefined)
+      ? e.classification_confidence
+      : ((clInfo && clInfo.confidence !== undefined) ? clInfo.confidence : null);
+    var clText = clCat;
+    if (typeof confRaw === 'number') {
+      clText += ' (' + (confRaw * 100).toFixed(0) + '% confidence)';
+    }
     var vminStatus = deriveVminStatus(e);
     var vminDisplay = formatVminDisplay(e.vmin_found, vminStatus);
     var xRange = esc(e.axis.xstart) + " to " + esc(e.axis.xstop) + " step " + esc(e.axis.xstep);
@@ -487,7 +621,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
       if (teamVal && (e.team || "UNKNOWN") !== teamVal) continue;
       if (unitVal && (e.visual_id || "") !== unitVal) continue;
       if (classVal) {
-        var eCat = (e.classification && e.classification.category) ? e.classification.category : "unclassified";
+        var eCat = e.classification_category || ((e.classification && e.classification.category) ? e.classification.category : "unclassified");
         if (eCat !== classVal) continue;
       }
       if (vminVal) {
@@ -503,8 +637,11 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
           e.team,
           e.vmin_found,
           e.vmin_status,
+          e.vmin_tag,
           e.vmin_expected_rail,
-          e.vmin_expected_freq
+          e.vmin_expected_freq,
+          e.classification_category,
+          Array.isArray(e.tags) ? e.tags.join(' ') : ''
         ].join(' ').toLowerCase();
         if (hay.indexOf(q) === -1) continue;
       }
@@ -534,12 +671,20 @@ def main() -> None:
     parser.add_argument("input_json", help="Path to shmoo_parsed.json")
     parser.add_argument("-o", "--output", default="shmoo_report.html", help="Output HTML path")
     parser.add_argument("--visual-id", default="", help="Optional filter to a specific visual ID / unit")
+    parser.add_argument("--team", default="", help="Optional exact team filter before report generation")
+    parser.add_argument("--plist", default="", help="Optional substring filter for plist")
+    parser.add_argument("--search", default="", help="Optional free-text filter across key fields")
     parser.add_argument(
-        "--open",
-        dest="open_report",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Open the generated report in the default web browser (default: enabled)",
+      "--vmin-status",
+      default="",
+      choices=["", "high", "ok", "missing_found", "no_expected_match", "unknown"],
+      help="Optional Vmin status filter before report generation",
+    )
+    parser.add_argument(
+      "--limit",
+      type=int,
+      default=0,
+      help="Optional max number of shmoos to include after filtering (0 means no limit)",
     )
     args = parser.parse_args()
 
@@ -555,6 +700,15 @@ def main() -> None:
     if args.visual_id:
         entries = [entry for entry in entries if (entry.get("visual_id") or "") == args.visual_id]
 
+    entries = apply_entry_filters(
+      entries,
+      team=args.team,
+      plist_contains=args.plist,
+      search_text=args.search,
+      vmin_status=args.vmin_status,
+      limit=args.limit,
+    )
+
     slim_entries = [slim_entry(entry) for entry in entries]
 
     meta = {
@@ -562,16 +716,20 @@ def main() -> None:
         "files_with_shmoo": payload.get("files_with_shmoo"),
         "total_shmoos": len(slim_entries),
         "visual_id_count": len({entry.get("visual_id") or "NO_VISUAL_ID" for entry in slim_entries}),
-      "high_vmin_count": len(
-        [
-          entry
-          for entry in slim_entries
-          if str(entry.get("vmin_status") or "").lower() == "high"
-          or "(high)" in str(entry.get("vmin_found") or "").lower()
-        ]
-      ),
+        "high_vmin_count": len(
+            [
+                entry
+                for entry in slim_entries
+            if normalize_vmin_status(entry) == "high"
+            ]
+        ),
         "path_folder": payload.get("path_folder"),
         "filter_visual_id": args.visual_id or None,
+        "filter_team": args.team or None,
+        "filter_plist": args.plist or None,
+        "filter_search": args.search or None,
+        "filter_vmin_status": args.vmin_status or None,
+        "limit": args.limit or None,
     }
 
     html = build_html(slim_entries, meta)
@@ -581,12 +739,11 @@ def main() -> None:
     print(f"Done. {len(slim_entries)} shmoo(s), {meta['visual_id_count']} visual ID(s).")
     print(f"Report: {output_html}")
 
-    if args.open_report:
-        report_uri = output_html.resolve().as_uri()
-        if webbrowser.open(report_uri):
-            print("Opened report in default browser.")
-        else:
-            print("Report generated, but browser could not be launched automatically.")
+    report_uri = output_html.resolve().as_uri()
+    if webbrowser.open(report_uri):
+      print("Opened report in default browser.")
+    else:
+      print("Report generated, but browser could not be launched automatically.")
 
 
 if __name__ == "__main__":

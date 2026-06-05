@@ -1,12 +1,44 @@
 {
-  "servers": {
+  "mcpServers": {
     "flash": {
       "tools": [
         "*"
       ],
       "type": "http",
       "url": "https://mdcx-tvpv-flash.intel.com/mcp"
+    },
+    "codesign": {
+      "tools": [
+        "*"
+      ],
+      "type": "http",
+      "url": "https://mcp-forge-prod.aisg.iglb.intel.com/servers/Co-Design-MCP/mcp",
+      "headers": {
+        "User-Agent": "Visual Studio Code/1.113.0"
+      }
+    },
+    "m365-graph": {
+      "tools": [
+        "*"
+      ],
+      "type": "local",
+      "command": "C:\\Users\\kjquesad\\.copilot\\bin\\m365-graph-mcp\\m365-graph-mcp.exe",
+      "args": []
+    },
+    "qbot-mcp-server": {
+      "tools": [
+        "*"
+      ],
+      "type": "local",
+      "command": "C:\\projects\\qbot-agents\\connectors\\mcp-adapters\\qbot-adapter.exe",
+      "args": []
+    },
+    "salsa": {
+      "tools": [
+        "*"
+      ],
+      "type": "http",
+      "url": "https://salsa.intel.com/mcp"
     }
   }
 }
- 

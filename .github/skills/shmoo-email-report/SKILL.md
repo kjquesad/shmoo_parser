@@ -13,6 +13,14 @@ Use this skill when the user asks for an email report.
 - "create an email report"
 - "send shmoo summary email"
 - "generate report for team by email"
+- "add x shmoos to email"
+
+## Visual Content Rule
+- If user requests specific shmoos in email (for example: "add 5 shmoos to email"), always generate email in `html` format with shmoo grid/table visualization.
+- Do not satisfy these requests with metadata-only summaries.
+- Default behavior for any shmoo email report is rendered visuals (`--email-format html`) so shmoo content is displayed graphically.
+- Only use non-rendered output (`--email-format text`) when user explicitly requests no image/rendering.
+- HTML emails include rendered shmoo image snapshots (inline SVG) for each shmoo by default, plus the grid/table details.
 
 ## Required Inputs
 - `email` (recipient email)
@@ -45,6 +53,7 @@ The generated email body must be grouped by unit and include:
 - For each shmoo:
   - PList name
   - Die ID (if available)
+   - Rendered shmoo image snapshot (HTML mode)
    - Shmoo data grid (HTML mode) or shmoo data rows (text mode)
   - Legend entries
 
@@ -56,6 +65,9 @@ python .github/skills/shmoo-email-report/scripts/email_report.py "<input_json>" 
 ## Format Options
 - `--email-format html`: visual email body with styled shmoo grids and legend tables (default)
 - `--email-format text`: plain text report body
+
+For `add x shmoos to email` intent, force `--email-format html`.
+For general email-report intents, keep `--email-format html` unless the user explicitly opts out of rendering.
 
 ## Outlook Integration
 - `--outlook-action none`: generate report only (default)

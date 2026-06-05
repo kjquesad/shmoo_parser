@@ -66,17 +66,97 @@ def infer_team(instance: str) -> str:
     return "UNKNOWN"
 
 
+def normalize_classification(entry: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize classification into a stable shape."""
+    raw = entry.get("classification")
+    if isinstance(raw, dict):
+        category = str(raw.get("category") or "").strip()
+        confidence = raw.get("confidence")
+        return {
+            "category": category or "unclassified",
+            "confidence": confidence if isinstance(confidence, (int, float)) else None,
+        }
+
+    if isinstance(raw, str) and raw.strip():
+        return {"category": raw.strip(), "confidence": None}
+
+    alt = str(entry.get("classification_category") or entry.get("class") or "").strip()
+    if alt:
+        conf = entry.get("classification_confidence")
+        return {
+            "category": alt,
+            "confidence": conf if isinstance(conf, (int, float)) else None,
+        }
+
+    return {"category": "unclassified", "confidence": None}
+
+
+def normalize_vmin_status(entry: Dict[str, Any]) -> str:
+    """Normalize vmin status from explicit field or alternate tags."""
+    status = str(entry.get("vmin_status") or "").strip().lower()
+    if status:
+        return status
+
+    vmin_tag = str(entry.get("vmin_tag") or "").strip().lower()
+    if vmin_tag in {"high", "ok", "missing_found", "no_expected_match", "unknown"}:
+        return vmin_tag
+
+    if bool(entry.get("high_vmin")) or bool(entry.get("vmin_is_high")):
+        return "high"
+
+    tags = entry.get("tags")
+    if isinstance(tags, list):
+        tag_set = {str(t).strip().lower() for t in tags}
+        if any(t in tag_set for t in {"high_vmin", "vmin_high", "high"}):
+            return "high"
+
+    found = str(entry.get("vmin_found") or "").lower()
+    if "(high)" in found:
+        return "high"
+    if "vmin found" in found:
+        return "ok"
+    return "unknown"
+
+
+def format_vmin_display(vmin_found: Any, vmin_status: str) -> str:
+    """Format vmin text consistently with normalized status."""
+    raw = str(vmin_found or "").strip()
+    if raw.lower().startswith("vmin found"):
+        parts = raw.split(":", 1)
+        raw = parts[1].strip() if len(parts) > 1 else raw
+    if not raw:
+        raw = "N/A"
+    if vmin_status == "high":
+        return f"High: {raw}"
+    if vmin_status == "ok":
+        return f"OK: {raw}"
+    return raw
+
+
 def normalize_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
     """Return only fields needed by the email report."""
     failing_data = entry.get("failing_data") if isinstance(entry.get("failing_data"), dict) else {}
     instance = entry.get("instance") or ""
     team = entry.get("team") or infer_team(instance)
+    classification = normalize_classification(entry)
+    vmin_status = normalize_vmin_status(entry)
 
     return {
         "visual_id": entry.get("visual_id") or "NO_VISUAL_ID",
         "team": str(team),
         "plist": entry.get("plist") or "UNKNOWN_PLIST",
         "die_id": entry.get("die_id") or "N/A",
+        "classification": classification,
+        "classification_category": classification.get("category"),
+        "classification_confidence": classification.get("confidence"),
+        "vmin_status": vmin_status,
+        "vmin_found": entry.get("vmin_found"),
+        "vmin_expected_mv": entry.get("vmin_expected_mv"),
+        "vmin_found_mv": entry.get("vmin_found_mv"),
+        "vmin_delta_mv": entry.get("vmin_delta_mv"),
+        "vmin_expected_rail": entry.get("vmin_expected_rail"),
+        "vmin_expected_freq": entry.get("vmin_expected_freq"),
+        "tags": entry.get("tags") if isinstance(entry.get("tags"), list) else [],
         "rows": failing_data.get("rows") if isinstance(failing_data.get("rows"), list) else [],
         "legends": entry.get("legends") if isinstance(entry.get("legends"), dict) else {},
     }
@@ -134,9 +214,19 @@ def build_email_body(team: str, entries: List[Dict[str, Any]]) -> str:
     for unit in sorted(units.keys()):
         lines.append(f"Unit: {unit}")
         for idx, shmoo in enumerate(units[unit], start=1):
+            cl_cat = shmoo.get("classification_category") or "unclassified"
+            cl_conf = shmoo.get("classification_confidence")
+            cl_text = cl_cat
+            if isinstance(cl_conf, (int, float)):
+                cl_text += f" ({cl_conf * 100:.0f}% confidence)"
+            vstatus = str(shmoo.get("vmin_status") or "unknown")
+            vdisplay = format_vmin_display(shmoo.get("vmin_found"), vstatus)
             lines.append(f"- Shmoo {idx}")
             lines.append(f"  PList: {shmoo.get('plist', 'UNKNOWN_PLIST')}")
             lines.append(f"  Die: {shmoo.get('die_id', 'N/A')}")
+            lines.append(f"  Classification: {cl_text}")
+            lines.append(f"  Vmin Status: {vstatus}")
+            lines.append(f"  Vmin Found: {vdisplay}")
             lines.append("  Shmoo Data:")
             lines.extend(format_rows(shmoo.get("rows", [])))
             lines.append("  Legends:")
@@ -153,19 +243,22 @@ def symbol_color(symbol: str) -> str:
     if symbol == "*":
         return "#c8f7c5"
 
+    # Keep non-pass symbols in red tones so only '*' appears green.
     palette = [
         "#e63946",
-        "#ff7f11",
-        "#ffbe0b",
-        "#06d6a0",
-        "#118ab2",
-        "#3a86ff",
-        "#8338ec",
-        "#ef476f",
-        "#2a9d8f",
-        "#f4a261",
-        "#457b9d",
-        "#bc6c25",
+        "#d62828",
+        "#c1121f",
+        "#9d0208",
+        "#6a040f",
+        "#a4133c",
+        "#800f2f",
+        "#ba181b",
+        "#e5383b",
+        "#ef233c",
+        "#ff4d6d",
+        "#ff758f",
+        "#ff8fa3",
+        "#b22222",
     ]
     idx = ord(symbol[0]) % len(palette)
     return palette[idx]
@@ -245,6 +338,8 @@ body{font-family:Segoe UI,Arial,sans-serif;color:#1f2937;background:#f5f7fb;marg
 .grid{border-collapse:collapse;margin-bottom:10px}
 .grid td{width:16px;height:16px;border:1px solid #d1d9e6;text-align:center;font-family:Consolas,monospace;font-size:11px;padding:0}
 .grid td.empty-cell{background:#ffffff;border:none}
+.img-wrap{margin:6px 0 10px 0;padding:8px;background:#ffffff;border:1px solid #dbe3ee;border-radius:6px;display:inline-block}
+.img-wrap img{display:block;max-width:100%;height:auto}
 .legend{border-collapse:collapse;width:100%;table-layout:fixed}
 .legend th,.legend td{border:1px solid #d1d9e6;padding:6px 8px;font-size:12px;vertical-align:top;word-break:break-word}
 .legend th{background:#eef3fb;text-align:left}
@@ -256,7 +351,7 @@ body{font-family:Segoe UI,Arial,sans-serif;color:#1f2937;background:#f5f7fb;marg
 <div class=\"wrap\">"""
     )
 
-    parts.append(f'<div class="title">Shmoo Report - Team {html.escape(team)}</div>')
+    parts.append(f'<div class="title">Shmoo Report  {html.escape(team)}</div>')
     parts.append(f'<div class="sub">Matching shmoos: {len(entries)}</div>')
 
     if not units:
@@ -265,12 +360,22 @@ body{font-family:Segoe UI,Arial,sans-serif;color:#1f2937;background:#f5f7fb;marg
         for unit in sorted(units.keys()):
             parts.append(f'<div class="unit"><h2>Unit: {html.escape(unit)}</h2>')
             for idx, shmoo in enumerate(units[unit], start=1):
+                cl_cat = str(shmoo.get("classification_category") or "unclassified")
+                cl_conf = shmoo.get("classification_confidence")
+                cl_text = cl_cat
+                if isinstance(cl_conf, (int, float)):
+                    cl_text += f" ({cl_conf * 100:.0f}% confidence)"
+                vstatus = str(shmoo.get("vmin_status") or "unknown")
+                vdisplay = format_vmin_display(shmoo.get("vmin_found"), vstatus)
                 parts.append('<div class="shmoo">')
                 parts.append(
                     '<div class="meta">'
                     f"<div><strong>Shmoo:</strong> {idx}</div>"
                     f"<div><strong>PList:</strong> {html.escape(str(shmoo.get('plist', 'UNKNOWN_PLIST')))}</div>"
                     f"<div><strong>Die:</strong> {html.escape(str(shmoo.get('die_id', 'N/A')))}</div>"
+                    f"<div><strong>Classification:</strong> {html.escape(cl_text)}</div>"
+                    f"<div><strong>Vmin Status:</strong> {html.escape(vstatus)}</div>"
+                    f"<div><strong>Vmin Found:</strong> {html.escape(vdisplay)}</div>"
                     "</div>"
                 )
                 parts.append(rows_to_html_grid(shmoo.get("rows", [])))

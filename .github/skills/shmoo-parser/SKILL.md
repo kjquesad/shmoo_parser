@@ -13,6 +13,7 @@ Use this skill to parse shmoo data and produce enriched `shmoo_parsed.json`.
 - User asks to parse shmoo data from a file/folder.
 - User asks to extract shmoos from logs/console output.
 - User asks for shmoo summary stats from a path.
+- User combines full analysis request with high-vmin display request in the same prompt.
 
 ## Workflow
 1. Resolve user input path.
@@ -38,6 +39,9 @@ Use this skill to parse shmoo data and produce enriched `shmoo_parsed.json`.
    - shmoos per visual ID
    - classification distribution
    - vmin high/ok/missing/no-match counts
+9. If the same prompt also asks to show/visualize high-vmin units, call `shmoo-html-report` next using:
+   - `--vmin-status high`
+   - optional `--limit <N>` when user asked for a specific count.
 
 ## Parsed Output Notes
 - Each shmoo entry includes `vmin_found` after `plist`.
