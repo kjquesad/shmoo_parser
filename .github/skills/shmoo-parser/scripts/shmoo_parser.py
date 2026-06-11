@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
+def _progress(msg: str) -> None:
+    print(msg, flush=True)
+
+
 def find_input_files(input_path: Path, recursive: bool) -> List[Path]:
     """Collect candidate console/log files that may contain Shmoo data."""
     supported = {".txt", ".log", ".itf", ".ittuf", ".ituff"}
@@ -68,7 +72,9 @@ def parse_visualid_from_line(line: str) -> Optional[str]:
     return None
 
 
-def extract_shmoohub_sections(lines: List[str]) -> List[List[str]]:
+def extract_shmoohub_sections(
+    lines: List[str], progress_label: str = "", heartbeat_every_lines: int = 250000
+) -> List[List[str]]:
     """Split file content into shmoo-centered sections keyed by ShmooHub."""
     sections: List[List[str]] = []
     current_section: List[str] = []
@@ -80,7 +86,12 @@ def extract_shmoohub_sections(lines: List[str]) -> List[List[str]]:
     pending_tname: Optional[str] = None
     current_visualid_line: Optional[str] = None
 
-    for line in lines:
+    for line_index, line in enumerate(lines, start=1):
+        if heartbeat_every_lines > 0 and line_index % heartbeat_every_lines == 0:
+            _progress(
+                f"[heartbeat] {progress_label} ShmooHub scan line {line_index}/{len(lines)}"
+            )
+
         plist_match = re.search(r"Plist\s*=\s*\[([^\]]+)\]", line, re.IGNORECASE)
         if plist_match:
             pending_plist = plist_match.group(1).strip()
@@ -129,7 +140,9 @@ def extract_shmoohub_sections(lines: List[str]) -> List[List[str]]:
     return sections
 
 
-def extract_ecads_sections(lines: List[str]) -> List[List[str]]:
+def extract_ecads_sections(
+    lines: List[str], progress_label: str = "", heartbeat_every_lines: int = 250000
+) -> List[List[str]]:
     """Split file content into ECADS Plot3 sections."""
     sections: List[List[str]] = []
     current_section: List[str] = []
@@ -140,7 +153,12 @@ def extract_ecads_sections(lines: List[str]) -> List[List[str]]:
     pending_tname: Optional[str] = None
     current_visualid_line: Optional[str] = None
 
-    for line in lines:
+    for line_index, line in enumerate(lines, start=1):
+        if heartbeat_every_lines > 0 and line_index % heartbeat_every_lines == 0:
+            _progress(
+                f"[heartbeat] {progress_label} ECADS scan line {line_index}/{len(lines)}"
+            )
+
         plist_match = re.search(r"Plist\s*=\s*\[([^\]]+)\]", line, re.IGNORECASE)
         if plist_match:
             pending_plist = plist_match.group(1).strip()
@@ -186,6 +204,109 @@ def extract_ecads_sections(lines: List[str]) -> List[List[str]]:
         sections.append(current_section)
 
     return sections
+
+
+def extract_sections_single_pass(
+    lines: List[str], progress_label: str = "", heartbeat_every_lines: int = 250000
+) -> tuple[List[List[str]], List[List[str]]]:
+    """Extract ShmooHub and ECADS sections in a single scan over file lines."""
+    shmoohub_sections: List[List[str]] = []
+    ecads_sections: List[List[str]] = []
+
+    shmoohub_current: List[str] = []
+    ecads_current: List[str] = []
+    in_shmoohub = False
+    in_ecads = False
+
+    pending_title: Optional[str] = None
+    pending_plist: Optional[str] = None
+    pending_dieid: Optional[str] = None
+    pending_tname: Optional[str] = None
+    current_visualid_line: Optional[str] = None
+
+    for line_index, line in enumerate(lines, start=1):
+        if heartbeat_every_lines > 0 and line_index % heartbeat_every_lines == 0:
+            _progress(
+                f"[heartbeat] {progress_label} single-pass scan line {line_index}/{len(lines)}"
+            )
+
+        lower_line = line.lower()
+
+        plist_match = re.search(r"Plist\s*=\s*\[([^\]]+)\]", line, re.IGNORECASE)
+        if plist_match:
+            pending_plist = plist_match.group(1).strip()
+
+        dieid_match = re.search(r"DieId\s*=\s*\[([^\]]+)\]", line, re.IGNORECASE)
+        if dieid_match:
+            pending_dieid = dieid_match.group(1).strip()
+
+        if "_ShmooParams" in line:
+            pending_title = line.strip()
+
+        normalized_line = line.strip().lstrip("\ufeff")
+        if re.match(r"\d+_tname_", normalized_line):
+            pending_tname = normalized_line
+
+        if "visualid" in lower_line and "strgval_miss" not in lower_line:
+            current_visualid_line = line.strip()
+
+        if "shmoohub" in lower_line:
+            if in_shmoohub and shmoohub_current:
+                shmoohub_sections.append(shmoohub_current)
+
+            shmoohub_current = []
+            in_shmoohub = True
+
+            if current_visualid_line:
+                shmoohub_current.append(current_visualid_line)
+            if pending_plist:
+                shmoohub_current.append(f"Plist=[{pending_plist}]")
+            if pending_dieid:
+                shmoohub_current.append(f"DieId=[{pending_dieid}]")
+            if pending_title:
+                shmoohub_current.append(pending_title)
+            if pending_tname:
+                shmoohub_current.append(pending_tname)
+
+            shmoohub_current.append(line)
+            continue
+
+        if "_comnt_plot3start_" in lower_line:
+            if in_ecads and ecads_current:
+                ecads_sections.append(ecads_current)
+
+            ecads_current = []
+            in_ecads = True
+
+            if current_visualid_line:
+                ecads_current.append(current_visualid_line)
+            if pending_plist:
+                ecads_current.append(f"Plist=[{pending_plist}]")
+            if pending_dieid:
+                ecads_current.append(f"DieId=[{pending_dieid}]")
+            if pending_tname:
+                ecads_current.append(pending_tname)
+
+            ecads_current.append(line)
+            continue
+
+        if in_shmoohub:
+            shmoohub_current.append(line)
+
+        if in_ecads:
+            ecads_current.append(line)
+            if "_comnt_plt3end_" in lower_line:
+                ecads_sections.append(ecads_current)
+                ecads_current = []
+                in_ecads = False
+
+    if in_shmoohub and shmoohub_current:
+        shmoohub_sections.append(shmoohub_current)
+
+    if in_ecads and ecads_current:
+        ecads_sections.append(ecads_current)
+
+    return shmoohub_sections, ecads_sections
 
 
 def parse_shmoo_axis(line: str) -> Optional[Dict[str, float]]:
@@ -392,7 +513,11 @@ def build_failing_data(
 
 
 def find_vmin_from_center(axis: Dict[str, float], rows: List[str]) -> Optional[float]:
-    """Find vmin by scanning the center column from low Y to high Y for first pass ('*')."""
+    """Find vmin by scanning the center column from low Y to high Y for first pass ('*').
+
+    If no passing point is found in the center column (fully failing shmoo), return
+    the highest Y value on the axis — the device was still failing at max tested voltage.
+    """
     if not rows:
         return None
 
@@ -411,6 +536,11 @@ def find_vmin_from_center(axis: Dict[str, float], rows: List[str]) -> Optional[f
             continue
         if row[center_col] == "*":
             return round(y_values[y_idx], 6)
+
+    # No pass found anywhere in center column — fully failing shmoo.
+    # Return the highest Y tested so downstream vmin comparisons see the worst case.
+    if y_values:
+        return round(y_values[-1], 6)
 
     return None
 
@@ -438,6 +568,28 @@ def _extract_team_from_tname(tname: str) -> Optional[str]:
     return None
 
 
+def _extract_instance_from_tname(tname: str) -> Optional[str]:
+    """Extract instance/testname portion from tname line."""
+    if not tname:
+        return None
+
+    match = re.match(r"\d+_tname_(.+)", tname)
+    content = match.group(1).strip() if match else tname.strip()
+    if not content:
+        return None
+
+    if content.lower().startswith("testtime_"):
+        content = content[len("testtime_") :]
+
+    parts = content.split("::")
+    candidate = parts[-1].strip() if parts else content
+    if not candidate:
+        return None
+
+    candidate = re.sub(r"_(ShmooParams|ShmooResults|SSTP)$", "", candidate)
+    return candidate or None
+
+
 def parse_shmoo_section(section: List[str], source_file: str, section_index: int) -> Optional[Dict[str, Any]]:
     """Parse one shmoo section into a JSON-serializable object."""
     visual_id: Optional[str] = None
@@ -450,6 +602,7 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
 
     shmoo_results_data: Optional[str] = None
     capture_next_as_results = False
+    tname_instances: List[str] = []
 
     # Plist candidates collected during parsing (resolved by priority after loop)
     plist_from_strgval: Optional[str] = None       # Priority 1: ^LEGEND^ + next strgval_ line
@@ -496,12 +649,18 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
             continue
 
         maybe_visualid = parse_visualid_from_line(stripped)
-        if maybe_visualid:
+        if maybe_visualid and not visual_id:
+            # Keep the first visual ID observed for this section to avoid
+            # cross-unit overwrite when later lines from subsequent context appear.
             visual_id = maybe_visualid
 
         tname_match = re.match(r"\d+_tname_(.+)", stripped)
-        if tname_match and not team:
-            team = _extract_team_from_tname(stripped)
+        if tname_match:
+            if not team:
+                team = _extract_team_from_tname(stripped)
+            instance_candidate = _extract_instance_from_tname(stripped)
+            if instance_candidate:
+                tname_instances.append(instance_candidate)
 
         if "ShmooParams" in stripped:
             shmoo_title = stripped
@@ -580,12 +739,39 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
     if axis is None or shmoo_results_data is None:
         return None
 
+    instance_name: Optional[str] = None
+
+    # Prefer instance candidates parsed from tname lines over generic ShmooParams wrappers.
+    for candidate in tname_instances:
+        upper = candidate.upper()
+        if "VMIN" in upper and not upper.startswith("RESET_"):
+            instance_name = candidate
+            break
+
+    if instance_name is None:
+        for candidate in tname_instances:
+            if not candidate.upper().startswith("RESET_"):
+                instance_name = candidate
+                break
+
+    if instance_name is None:
+        instance_name = shmoo_title
+
+    # Some chain-group plists can be wrapped by RESET_* shmoo labels.
+    # When that happens, promote to the chain-group instance form.
+    if instance_name and instance_name.upper().startswith("RESET_") and plist_name:
+        plist_lower = plist_name.lower()
+        chain_group_match = re.search(r"group(\d+)_x_atpg_chain", plist_lower)
+        if chain_group_match and "bgnimh_ssn_edt" in plist_lower:
+            group_num = chain_group_match.group(1)
+            instance_name = f"CHAIN_GROUP{group_num}_VMIN_K_BGNIMH_SSN_X_VMIN_X_X"
+
     failing_data = build_failing_data(shmoo_results_data, axis, legends)
     vmin_found = find_vmin_from_center(axis, failing_data.get("rows", []))
 
     return {
         "visual_id": visual_id,
-        "instance": shmoo_title,
+        "instance": instance_name,
         "team": team,
         "plist": plist_name,
         "vmin_found": vmin_found,
@@ -622,7 +808,9 @@ def parse_ecads_section(section: List[str], source_file: str, section_index: int
         lower = stripped.lower()
 
         maybe_visualid = parse_visualid_from_line(stripped)
-        if maybe_visualid:
+        if maybe_visualid and not visual_id:
+            # Keep first visual ID in section; later visualid tokens can belong
+            # to neighboring units in mixed logs.
             visual_id = maybe_visualid
 
         plist_match = re.search(r"Plist\s*=\s*\[([^\]]+)\]", stripped, re.IGNORECASE)
@@ -710,7 +898,9 @@ def parse_ecads_section(section: List[str], source_file: str, section_index: int
 
 def parse_file(file_path: Path) -> List[Dict[str, Any]]:
     """Extract and parse shmoo sections from supported formats in one file."""
+    _progress(f"[parser] Reading {file_path}")
     lines = read_text_lines(file_path)
+    _progress(f"[parser] Loaded {len(lines)} line(s) from {file_path.name}")
     parsed: List[Dict[str, Any]] = []
     seen_fingerprints = set()
 
@@ -733,17 +923,30 @@ def parse_file(file_path: Path) -> List[Dict[str, Any]]:
             seen_fingerprints.add(fingerprint)
             parsed.append(entry)
 
-    shmoohub_sections = extract_shmoohub_sections(lines)
+    shmoohub_sections, ecads_sections = extract_sections_single_pass(
+        lines, progress_label=file_path.name
+    )
+    _progress(f"[parser] {file_path.name}: found {len(shmoohub_sections)} ShmooHub section(s)")
     for idx, section in enumerate(shmoohub_sections, start=1):
         result = parse_shmoo_section(section, str(file_path), idx)
         if result:
             append_unique(result)
+        if idx % 200 == 0:
+            _progress(
+                f"[heartbeat] {file_path.name} parsed {idx}/{len(shmoohub_sections)} ShmooHub section(s)"
+            )
 
-    ecads_sections = extract_ecads_sections(lines)
+    _progress(f"[parser] {file_path.name}: found {len(ecads_sections)} ECADS section(s)")
     for idx, section in enumerate(ecads_sections, start=1):
         result = parse_ecads_section(section, str(file_path), idx)
         if result:
             append_unique(result)
+        if idx % 200 == 0:
+            _progress(
+                f"[heartbeat] {file_path.name} parsed {idx}/{len(ecads_sections)} ECADS section(s)"
+            )
+
+    _progress(f"[parser] Completed {file_path.name}: {len(parsed)} parsed shmoo(s)")
 
     return parsed
 
@@ -781,7 +984,11 @@ def parse_inputs(input_path: Path, recursive: bool, team_filter: str = "") -> Di
     files_with_shmoo = 0
     total_shmoos = 0
 
-    for file_path in files:
+    if files:
+        _progress(f"[parser] Files queued: {len(files)}")
+
+    for file_index, file_path in enumerate(files, start=1):
+        _progress(f"[parser] Processing file {file_index}/{len(files)}: {file_path.name}")
         parsed = parse_file(file_path)
         if team_filter:
             parsed = [entry for entry in parsed if _entry_matches_team_filter(entry, team_filter)]
@@ -794,6 +1001,10 @@ def parse_inputs(input_path: Path, recursive: bool, team_filter: str = "") -> Di
                 entry_with_source["source_file"] = source_file
                 grouped_shmoos[visual_id].append(entry_with_source)
             total_shmoos += len(parsed)
+
+        _progress(
+            f"[parser] File {file_index}/{len(files)} done: {len(parsed)} shmoo(s) kept"
+        )
 
     return {
         "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -852,12 +1063,12 @@ def main() -> None:
     payload = parse_inputs(input_path, args.recursive, args.team_filter)
     write_json(output_path, payload)
 
-    print(
+    _progress(
         f"Done. Scanned {payload['files_scanned']} file(s), found {payload['total_shmoos']} shmoo section(s)."
     )
     if args.team_filter:
-        print(f"Applied team filter: {args.team_filter}")
-    print(f"JSON written to: {output_path}")
+        _progress(f"Applied team filter: {args.team_filter}")
+    _progress(f"JSON written to: {output_path}")
 
 
 if __name__ == "__main__":

@@ -31,6 +31,10 @@ import argparse
 from pathlib import Path
 
 
+def _progress(msg):
+    print(msg, flush=True)
+
+
 def rows_to_matrix(rows):
     """Convert rows list to binary matrix: 1=fail, 0=pass."""
     matrix = []
@@ -405,7 +409,15 @@ def classify_parsed_json(data):
     results = []
     shmoos = data.get("shmoos", {})
 
+    processed = 0
+    total_hint = int(data.get("total_shmoos") or 0)
+    if total_hint:
+        _progress(f"[classifier] Starting classification for about {total_hint} shmoo(s)")
+    else:
+        _progress("[classifier] Starting classification")
+
     for entry in _iter_shmoo_entries(shmoos):
+            processed += 1
             rows = entry.get("failing_data", {}).get("rows", [])
             if not rows:
                 results.append({
@@ -438,6 +450,13 @@ def classify_parsed_json(data):
                 "features": features,
             }
 
+            if processed % 200 == 0:
+                if total_hint:
+                    _progress(f"[heartbeat] classifier processed {processed}/{total_hint}")
+                else:
+                    _progress(f"[heartbeat] classifier processed {processed}")
+
+    _progress(f"[classifier] Completed classification for {processed} shmoo(s)")
     return results
 
 
@@ -470,6 +489,7 @@ def main():
     with open(input_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    _progress(f"[classifier] Loaded input JSON: {input_path}")
     results = classify_parsed_json(data)
     print_summary(results)
 
@@ -483,32 +503,7 @@ def main():
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
-    print(f"Classified JSON saved to: {output_path}")
-
-    # Also save a summary CSV for quick review
-    csv_path = output_path.with_suffix(".csv")
-    import csv
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["visual_id", "instance", "plist", "category", "confidence",
-                         "total_fail_ratio", "top_fail_ratio", "bot_fail_ratio",
-                         "left_fail_ratio", "right_fail_ratio", "is_diagonal"])
-        for r in results:
-            feat = r["classification"]["features"] or {}
-            writer.writerow([
-                r["visual_id"] or "NO_VID",
-                r["instance"],
-                r["plist"],
-                r["classification"]["category"],
-                r["classification"]["confidence"],
-                feat.get("total_fail_ratio", ""),
-                feat.get("top_fail_ratio", ""),
-                feat.get("bot_fail_ratio", ""),
-                feat.get("left_fail_ratio", ""),
-                feat.get("right_fail_ratio", ""),
-                feat.get("is_diagonal", ""),
-            ])
-    print(f"Summary CSV saved to: {csv_path}")
+    _progress(f"Classified JSON saved to: {output_path}")
 
 
 if __name__ == "__main__":

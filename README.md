@@ -44,6 +44,8 @@ This repo provides a complete workflow for shmoo analysis:
 - `.github/skills/shmoo-parser/SKILL.md`
 - `.github/skills/shmoo-html-report/SKILL.md`
 - `.github/skills/shmoo-email-report/SKILL.md`
+- `.github/skills/bring_vpo_class_data/SKILL.md`
+- `.github/skills/bring_vpo_sort_data/SKILL.md`
 - `.github/agents/shmoo-analyzer.agent.md`
 - `Shmoo_Overview.pdf`
 

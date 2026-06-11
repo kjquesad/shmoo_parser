@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 
+def _progress(msg: str) -> None:
+    print(msg, flush=True)
+
+
 def load_json(path: Path) -> Dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -257,8 +261,16 @@ def annotate_vmin(
         "no_expected_match": 0,
     }
 
-    for entry in iter_entries(payload):
+    _progress("[vmin] Starting vmin annotation")
+
+    for index, entry in enumerate(iter_entries(payload), start=1):
         stats["total_entries"] += 1
+
+        if index % 500 == 0:
+            _progress(
+                "[heartbeat] vmin processed "
+                f"{index} entries (matched={stats['matched_expected']}, high={stats['high_count']})"
+            )
 
         if not should_process(entry, plist_filters, visual_filters):
             continue
@@ -337,6 +349,7 @@ def annotate_vmin(
             entry["vmin_found"] = f"Vmin Found: {format_v(found_mv)}"
             stats["ok_count"] += 1
 
+    _progress(f"[vmin] Completed vmin annotation for {stats['total_entries']} entries")
     return stats
 
 
@@ -361,7 +374,9 @@ def main() -> None:
 
     output_path = Path(args.output) if args.output else input_path.with_name(f"{input_path.stem}_vmin_tagged.json")
 
+    _progress(f"[vmin] Loading input JSON: {input_path}")
     payload = load_json(input_path)
+    _progress(f"[vmin] Loading expected DB: {expected_path}")
     expected_payload = load_json(expected_path)
     expected_db = flatten_expected_db(expected_payload)
 
@@ -374,14 +389,14 @@ def main() -> None:
     stats = annotate_vmin(payload, expected_db, plist_filters, visual_filters)
     save_json(output_path, payload)
 
-    print(f"Vmin detector done. Output: {output_path}")
-    print(f"Total entries: {stats['total_entries']}")
-    print(f"Processed entries: {stats['processed_entries']}")
-    print(f"Matched expected: {stats['matched_expected']}")
-    print(f"High Vmin: {stats['high_count']}")
-    print(f"OK Vmin: {stats['ok_count']}")
-    print(f"Missing found Vmin: {stats['missing_found']}")
-    print(f"No expected match: {stats['no_expected_match']}")
+    _progress(f"Vmin detector done. Output: {output_path}")
+    _progress(f"Total entries: {stats['total_entries']}")
+    _progress(f"Processed entries: {stats['processed_entries']}")
+    _progress(f"Matched expected: {stats['matched_expected']}")
+    _progress(f"High Vmin: {stats['high_count']}")
+    _progress(f"OK Vmin: {stats['ok_count']}")
+    _progress(f"Missing found Vmin: {stats['missing_found']}")
+    _progress(f"No expected match: {stats['no_expected_match']}")
 
 
 if __name__ == "__main__":

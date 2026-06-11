@@ -43,6 +43,19 @@ Use this skill to parse shmoo data and produce enriched `shmoo_parsed.json`.
    - `--vmin-status high`
    - optional `--limit <N>` when user asked for a specific count.
 
+## Long-Run Execution Policy
+- Large ITF parser runs can be quiet for long periods; this is expected behavior.
+- Do not terminate parser just because output pauses.
+- Start parser with a generous timeout or background tracking, then keep polling until completion is confirmed.
+- Treat parser completion (`Done. Scanned ...` plus output JSON path) as the trigger to run:
+   1) classifier
+   2) vmin detector
+   3) html report (when requested by the user prompt)
+- If parser is still running, do not start a second parser command for the same input.
+- Only stop parser when:
+   - user explicitly asks to cancel, or
+   - there is clear terminal/process failure.
+
 ## Parsed Output Notes
 - Each shmoo entry includes `vmin_found` after `plist`.
 - `vmin_found` is computed by checking the center column of `failing_data.rows` from low Y to high Y and taking the first passing point (`*`).
