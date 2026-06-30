@@ -121,6 +121,7 @@ def slim_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
         "axis": entry.get("axis") if isinstance(entry.get("axis"), dict) else {},
         "legends": entry.get("legends") if isinstance(entry.get("legends"), dict) else {},
         "rows": failing_data.get("rows") if isinstance(failing_data.get("rows"), list) else [],
+        "failures": failing_data.get("failures") if isinstance(failing_data.get("failures"), list) else [],
         "classification": classification,
         "classification_category": classification.get("category"),
         "classification_confidence": classification.get("confidence"),
@@ -261,7 +262,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 #shmoo-grid table{border-collapse:collapse;margin:0 auto}
 #shmoo-grid td{width:24px;height:24px;text-align:center;font-size:13px;font-family:Consolas,monospace;border:1px solid #e8ede9}
 #shmoo-grid td.pass{background:#b7e4c7;color:#155d27}
-#shmoo-grid td.fail{color:#fff}
+#shmoo-grid td.fail{color:#fff;position:relative;cursor:pointer}
 #point-selected{margin-top:8px;background:#f7faf8;border:1px solid #e0ebe5;border-radius:6px;padding:8px 10px;font-size:.82rem;color:#1f3a31}
 #point-selected .title{font-weight:700;margin-bottom:4px;color:#1a3b2e}
 #point-selected .empty{padding:0;text-align:left}
@@ -369,6 +370,14 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   var COLORS = ["#e76f51","#f4a261","#e9c46a","#2a9d8f","#457b9d","#f72585","#4361ee","#7209b7","#ef476f","#06d6a0","#ff7f11","#1d3557","#8ecae6","#e63946","#fb8500"];
 
   function esc(v){ return (v === null || v === undefined || v === "") ? "-" : String(v); }
+  function escAttr(v){
+    return String(v === null || v === undefined ? "" : v)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/'/g, "&#39;");
+  }
   function shortFile(v){ if(!v) return "-"; var p=v.replace(/\\\\/g,"/").split("/"); return p[p.length-1] || v; }
   function getColor(sym, idx){ return sym === "*" ? "#b7e4c7" : COLORS[idx % COLORS.length]; }
   function categoryClassName(cat){ return (cat || "").toLowerCase().replace(/\\s+/g, "_"); }
@@ -520,6 +529,25 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     var maxCols = 0;
     for (var r = 0; r < rows.length; r++) { if (rows[r].length > maxCols) maxCols = rows[r].length; }
 
+    var failures = Array.isArray(e.failures) ? e.failures : [];
+    var failureMap = {};
+    for (var fi = 0; fi < failures.length; fi++) {
+      var f = failures[fi] || {};
+      var fx = Number(f.x);
+      var fy = Number(f.y);
+      if (!isFinite(fx) || !isFinite(fy)) continue;
+      var xIdx = Math.round((fx - xStart) / xStep);
+      var yIdx = Math.round((fy - yStart) / yStep);
+      if (!isFinite(xIdx) || !isFinite(yIdx) || xIdx < 0 || yIdx < 0) continue;
+      var k = xIdx + "|" + yIdx;
+      if (!failureMap[k]) failureMap[k] = [];
+      var info = (f.legend_info !== undefined && f.legend_info !== null && String(f.legend_info).trim())
+        ? String(f.legend_info).trim()
+        : ((f.symbol && e.legends && e.legends[f.symbol]) ? String(e.legends[f.symbol]).trim() : "");
+      if (!info) continue;
+      if (failureMap[k].indexOf(info) === -1) failureMap[k].push(info);
+    }
+
     var symbolSet = {};
     for (var rr = 0; rr < rows.length; rr++) {
       for (var cc = 0; cc < rows[rr].length; cc++) { symbolSet[rows[rr][cc]] = true; }
@@ -547,7 +575,11 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
           var bg = getColor(ch, symbolIdx[ch] || 0);
           var xValCell = (xStart + x2 * xStep).toFixed(6);
           var yValCell = (yStart + y * yStep).toFixed(6);
-          html += '<td class="fail" data-xidx="' + x2 + '" data-yidx="' + y + '" data-x="' + xValCell + '" data-y="' + yValCell + '" data-symbol="' + ch + '" style="background:' + bg + '">' + ch + '</td>';
+          var key = x2 + "|" + y;
+          var failInfoList = failureMap[key] || [];
+          var failInfo = failInfoList.length ? failInfoList.join(" ; ") : ((e.legends && e.legends[ch]) ? e.legends[ch] : "");
+          var failInfoText = escAttr(failInfo || "Unknown");
+          html += '<td class="fail" data-xidx="' + x2 + '" data-yidx="' + y + '" data-x="' + xValCell + '" data-y="' + yValCell + '" data-symbol="' + ch + '" data-failure-info="' + failInfoText + '" title="' + failInfoText + '" style="background:' + bg + '">' + ch + '</td>';
         }
       }
       html += '</tr>';
@@ -565,7 +597,8 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
         var xval = this.getAttribute('data-x');
         var yval = this.getAttribute('data-y');
         var symbol = this.getAttribute('data-symbol');
-        var failInfo = (e.legends && e.legends[symbol]) ? e.legends[symbol] : '-';
+        var cellInfo = this.getAttribute('data-failure-info');
+        var failInfo = cellInfo || ((e.legends && e.legends[symbol]) ? e.legends[symbol] : '-');
 
         pointSelected.innerHTML =
           '<div class="title">Point Selected</div>' +

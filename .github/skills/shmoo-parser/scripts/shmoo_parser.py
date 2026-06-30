@@ -466,6 +466,81 @@ def build_axis_values(start: float, stop: float, step: float) -> List[float]:
     return [start + i * step for i in range(count)]
 
 
+# Conversion from axis time units to seconds (repetition legend keys encode
+# timing in SI seconds, e.g. "9E-09" == 9 ns).
+_UNIT_TO_SECONDS_FACTOR = {
+    "s": 1.0,
+    "ms": 1e-3,
+    "us": 1e-6,
+    "µs": 1e-6,
+    "ns": 1e-9,
+    "ps": 1e-12,
+}
+
+
+def _build_coord_legend_map(
+    legends: Dict[str, str],
+    axis: Dict[str, float],
+    x_values: List[float],
+    y_values: List[float],
+) -> Dict[str, List[str]]:
+    """Map grid index "x_idx|y_idx" -> failure infos for coordinate-keyed legends.
+
+    Repetition shmoos use legend keys like "[9E-09^0.55^0]" encoding
+    (timing_in_seconds ^ voltage ^ repetition_index). The grid symbol in these
+    shmoos is a digit (how many repetitions failed at that point), so the failure
+    info cannot be looked up by symbol. Instead, each failing point's (x, y)
+    coordinate is matched against these legend keys.
+    """
+    coord_map: Dict[str, List[str]] = {}
+    if not legends:
+        return coord_map
+
+    unit = str(axis.get("unit", "")).strip().lower()
+    factor = _UNIT_TO_SECONDS_FACTOR.get(unit)  # seconds per axis time-unit
+    xstep = float(axis.get("xstep") or 0) or 1.0
+    ystep = float(axis.get("ystep") or 0) or 1.0
+    xtol = abs(xstep) * 0.5 or 0.5
+    ytol = abs(ystep) * 0.5 or 0.5
+
+    def nearest_idx(value: float, values: List[float], tol: float) -> int:
+        best_i, best_d = -1, None
+        for i, v in enumerate(values):
+            d = abs(v - value)
+            if best_d is None or d < best_d:
+                best_d, best_i = d, i
+        if best_i != -1 and best_d is not None and best_d <= tol:
+            return best_i
+        return -1
+
+    for key, info in legends.items():
+        k = key.strip()
+        if not k.startswith("[") or "^" not in k:
+            continue
+        body = k[1:]
+        if body.endswith("]"):
+            body = body[:-1]
+        parts = body.split("^")
+        if len(parts) < 2:
+            continue
+        try:
+            xval = float(parts[0])
+            yval = float(parts[1])
+        except ValueError:
+            continue
+        # Legend timing is in seconds; convert to axis units when the unit is known.
+        xval_axis = xval / factor if factor else xval
+        x_idx = nearest_idx(xval_axis, x_values, xtol)
+        y_idx = nearest_idx(yval, y_values, ytol)
+        if x_idx == -1 or y_idx == -1:
+            continue
+        bucket = coord_map.setdefault(f"{x_idx}|{y_idx}", [])
+        if info not in bucket:
+            bucket.append(info)
+
+    return coord_map
+
+
 def build_failing_data(
     data_string: str,
     axis: Dict[str, float],
@@ -476,6 +551,8 @@ def build_failing_data(
 
     x_values = build_axis_values(axis["xstart"], axis["xstop"], axis["xstep"])
     y_values = build_axis_values(axis["ystart"], axis["ystop"], axis["ystep"])
+
+    coord_legends = _build_coord_legend_map(legends, axis, x_values, y_values)
 
     failures: List[Dict[str, Any]] = []
     pass_count = 0
@@ -500,6 +577,10 @@ def build_failing_data(
 
             if symbol in legends:
                 failure_entry["legend_info"] = legends[symbol]
+            else:
+                coord_info = coord_legends.get(f"{x_idx}|{y_idx}")
+                if coord_info:
+                    failure_entry["legend_info"] = " ; ".join(coord_info)
 
             failures.append(failure_entry)
 
