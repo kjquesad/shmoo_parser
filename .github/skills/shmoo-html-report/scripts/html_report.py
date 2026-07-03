@@ -106,6 +106,7 @@ def slim_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
         "die_id": entry.get("die_id"),
         "instance": instance,
         "team": team,
+        "location": entry.get("location"),
         "plist": entry.get("plist"),
         "vmin_found": entry.get("vmin_found"),
         "vmin_status": entry.get("vmin_status"),
@@ -226,7 +227,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 .filters select,.filters input{padding:6px 10px;border:1px solid #c5d0cb;border-radius:6px;font-size:.84rem;background:#fff}
 .filters select{min-width:160px}
 .filters input{flex:1;min-width:180px}
-.wrap{display:flex;height:calc(100vh - 110px)}
+.wrap{display:flex;height:calc(100vh - 150px)}
 .sidebar{width:340px;border-right:1px solid #d4ddd8;background:#fff;overflow-y:auto;flex-shrink:0;padding:10px}
 .unit-group{margin-bottom:12px}
 .unit-header{font-weight:700;font-size:.84rem;padding:6px 8px;background:#edf8f4;border:1px solid #c5e8db;border-radius:6px;margin-bottom:4px}
@@ -257,7 +258,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 .meta-item{background:#f7faf8;border:1px solid #e0ebe5;border-radius:6px;padding:6px 8px}
 .meta-item.wide{grid-column:span 2}
 .meta-item .k{font-size:.7rem;text-transform:uppercase;color:#5a6e66;letter-spacing:.04em}
-.meta-item .v{font-size:.84rem;margin-top:2px;word-break:break-all;font-family:Consolas,monospace}
+.meta-item .v{font-size:.84rem;margin-top:2px;white-space:normal;overflow-wrap:anywhere;word-break:break-word;font-family:Consolas,monospace}
 #shmoo-grid{width:100%;overflow:auto;display:flex;justify-content:center;padding:10px 0}
 #shmoo-grid table{border-collapse:collapse;margin:0 auto}
 #shmoo-grid td{width:24px;height:24px;text-align:center;font-size:13px;font-family:Consolas,monospace;border:1px solid #e8ede9}
@@ -266,25 +267,91 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 #point-selected{margin-top:8px;background:#f7faf8;border:1px solid #e0ebe5;border-radius:6px;padding:8px 10px;font-size:.82rem;color:#1f3a31}
 #point-selected .title{font-weight:700;margin-bottom:4px;color:#1a3b2e}
 #point-selected .empty{padding:0;text-align:left}
-.legend-tbl{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:6px}
-.legend-tbl th,.legend-tbl td{border:1px solid #dde5dd;padding:5px 7px;text-align:left}
+#point-selected>div:not(.title):not(.empty){white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.legend-tbl{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.82rem;margin-top:6px}
+.legend-tbl th,.legend-tbl td{border:1px solid #dde5dd;padding:5px 7px;text-align:left;overflow-wrap:anywhere;word-break:break-word}
+.legend-tbl th:first-child,.legend-tbl td:first-child{width:70px}
 .legend-tbl th{background:#f2f7f3}
 .empty{padding:20px;text-align:center;color:#5a6e66}
+.theme-toggle{position:absolute;top:14px;right:20px;padding:6px 12px;border:1px solid #c5d0cb;border-radius:6px;font-size:.8rem;background:#fff;color:#1a2b25;cursor:pointer}
+.theme-toggle:hover{border-color:#7ab8a4}
+/* Dark theme */
+body.dark{background:#121212;color:#e6e6e6}
+body.dark header{background:#1c1c1c;border-bottom-color:#333}
+body.dark header .info{color:#a0a0a0}
+body.dark .theme-toggle{background:#2a2a2a;color:#e6e6e6;border-color:#444}
+body.dark .filters select,body.dark .filters input{background:#2a2a2a;color:#e6e6e6;border-color:#444}
+body.dark .sidebar{background:#1c1c1c;border-right-color:#333}
+body.dark .unit-header{background:#243029;border-color:#33463c;color:#e6e6e6}
+body.dark .unit-header .count{color:#a0a0a0}
+body.dark .card{border-color:#333;background:#222}
+body.dark .card:hover{border-color:#4a8f78}
+body.dark .card.active{border-color:#2a9d8f;background:#233}
+body.dark .card .inst{color:#cfe8dd}
+body.dark .card .team-tag{background:#2f3f37;color:#9fd6bf}
+body.dark .main{color:#e6e6e6}
+body.dark .panel{background:#1c1c1c;border-color:#333}
+body.dark .panel h2{color:#cfe8dd}
+body.dark .meta-item{background:#242424;border-color:#3a3a3a}
+body.dark .meta-item .k{color:#9a9a9a}
+body.dark .meta-item .v{color:#e6e6e6}
+body.dark #shmoo-grid td{border-color:#333}
+body.dark #shmoo-grid td.pass{background:#1f4d33;color:#a7e8c4}
+body.dark #point-selected{background:#242424;border-color:#3a3a3a;color:#e6e6e6}
+body.dark #point-selected .title{color:#cfe8dd}
+body.dark .legend-tbl th,body.dark .legend-tbl td{border-color:#3a3a3a}
+body.dark .legend-tbl th{background:#242424}
+body.dark .empty{color:#9a9a9a}
+.view{display:none}
+.view.active{display:block}
+.tabs{display:flex;gap:6px;margin-top:10px}
+.tab-btn{padding:6px 14px;border:1px solid #c5d0cb;border-radius:6px 6px 0 0;background:#eef3f1;color:#1a2b25;cursor:pointer;font-size:.84rem;font-weight:600}
+.tab-btn.active{background:#0d7c66;color:#fff;border-color:#0d7c66}
+body.heatmaps-active .filters{display:none}
+.hm-filters{display:none}
+body.heatmaps-active .hm-filters{display:flex}
+#hm-grid{width:100%;overflow:auto;display:flex;justify-content:center;padding:10px 0}
+#hm-grid table{border-collapse:collapse;margin:0 auto}
+#hm-grid td{width:28px;height:26px;text-align:center;font-size:12px;font-family:Consolas,monospace;border:1px solid #e8ede9}
+#hm-grid td.pass{background:#f2f7f4;color:#9fb3aa}
+#hm-grid td.fail{cursor:pointer;font-weight:700;color:#fff;text-shadow:0 0 2px rgba(0,0,0,.65)}
+#hm-info{margin-bottom:8px;font-size:.82rem;color:#5a6e66}
+#hm-point{margin-top:8px;background:#f7faf8;border:1px solid #e0ebe5;border-radius:6px;padding:8px 10px;font-size:.82rem;color:#1f3a31}
+#hm-point .title{font-weight:700;margin-bottom:4px;color:#1a3b2e}
+#hm-point>div:not(.title):not(.empty){margin-bottom:2px}
+body.dark .tab-btn{background:#242424;color:#e6e6e6;border-color:#444}
+body.dark .tab-btn.active{background:#2a9d8f;color:#08130f;border-color:#2a9d8f}
+body.dark #hm-grid td{border-color:#333}
+body.dark #hm-grid td.pass{background:#222;color:#555}
+body.dark #hm-info{color:#a0a0a0}
+body.dark #hm-point{background:#242424;border-color:#3a3a3a;color:#e6e6e6}
+body.dark #hm-point .title{color:#cfe8dd}
 @media (max-width: 980px){.wrap{display:block;height:auto}.sidebar{width:100%;border-right:none;border-bottom:1px solid #d4ddd8;max-height:42vh}}
 </style>
 </head>
 <body>
 <header>
-  <h1>Shmoo HTML Report</h1>
+  <h1 id="report-title">Shmoo HTML Report</h1>
+  <button id="theme-toggle" class="theme-toggle" type="button">Dark mode</button>
   <div class="info" id="hdr-info"></div>
+  <div class="tabs">
+    <button class="tab-btn active" type="button" data-view="shmoos">Shmoos</button>
+    <button class="tab-btn" type="button" data-view="heatmaps">HeatMaps</button>
+  </div>
   <div class="filters">
     <select id="team-filter"><option value="">All Teams</option></select>
+    <select id="location-filter"><option value="">All Locations</option></select>
     <select id="unit-filter"><option value="">All Units</option></select>
     <select id="class-filter"><option value="">All Classifications</option></select>
     <select id="vmin-filter"><option value="">All Vmin Status</option></select>
     <input id="search" placeholder="Search instance, plist..." />
   </div>
+  <div class="filters hm-filters">
+    <select id="hm-team-filter"><option value="">All Teams</option></select>
+    <select id="hm-location-filter"><option value="">All Locations</option></select>
+  </div>
 </header>
+<div id="view-shmoos" class="view active">
 <div class="wrap">
   <aside class="sidebar">
     <div id="card-list"></div>
@@ -294,6 +361,17 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     <div class="panel"><h2>Shmoo Visualization</h2><div id="shmoo-grid"></div><div id="point-selected"><div class="title">Point Selected</div><div class="empty">Click a failing point in the grid to inspect it.</div></div></div>
     <div class="panel"><h2>Legend</h2><div id="legend-panel"></div></div>
   </div>
+</div>
+</div>
+<div id="view-heatmaps" class="view">
+<div class="wrap">
+  <aside class="sidebar">
+    <div id="hm-list"></div>
+  </aside>
+  <div class="main">
+    <div class="panel"><h2>Instance Heatmap</h2><div class="info" id="hm-info"></div><div id="hm-grid"><div class="empty">Select an instance to view its heatmap.</div></div><div id="hm-point"><div class="title">Cell Selected</div><div class="empty">Click a cell in the heatmap to see failing units.</div></div></div>
+  </div>
+</div>
 </div>
 <script id="report-data" type="application/json">""")
 
@@ -306,7 +384,26 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   var entries = data.entries || [];
   var meta = data.meta || {};
 
+  var themeToggle = document.getElementById("theme-toggle");
+  function applyTheme(mode){
+    var dark = mode === "dark";
+    document.body.classList.toggle("dark", dark);
+    themeToggle.textContent = dark ? "Light mode" : "Dark mode";
+  }
+  var savedTheme = null;
+  try { savedTheme = localStorage.getItem("shmooReportTheme"); } catch (err) {}
+  applyTheme(savedTheme === "dark" ? "dark" : "light");
+  themeToggle.addEventListener("click", function(){
+    var next = document.body.classList.contains("dark") ? "light" : "dark";
+    applyTheme(next);
+    try { localStorage.setItem("shmooReportTheme", next); } catch (err) {}
+  });
+
   var hdrInfo = document.getElementById("hdr-info");
+  var titleEl = document.getElementById("report-title");
+  if (titleEl && meta.report_title) {
+    titleEl.textContent = "Shmoo HTML Report: " + meta.report_title;
+  }
   hdrInfo.textContent = "Total shmoos: " + entries.length +
     " | Visual IDs: " + (meta.visual_id_count || "-") +
     " | Files scanned: " + (meta.files_scanned || "-") +
@@ -319,17 +416,20 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   var legendPanel = document.getElementById("legend-panel");
   var searchBox = document.getElementById("search");
   var teamFilter = document.getElementById("team-filter");
+  var locationFilter = document.getElementById("location-filter");
   var unitFilter = document.getElementById("unit-filter");
 
   var classFilter = document.getElementById("class-filter");
   var vminFilter = document.getElementById("vmin-filter");
 
   var teamSet = {};
+  var locationSet = {};
   var unitSet = {};
   var classSet = {};
   var vminSet = {};
   for (var i = 0; i < entries.length; i++) {
     teamSet[entries[i].team || "UNKNOWN"] = true;
+    locationSet[entries[i].location || "UNKNOWN"] = true;
     unitSet[entries[i].visual_id || "NO_VISUAL_ID"] = true;
     var cl = entries[i].classification;
     var clCat = entries[i].classification_category || (cl && cl.category ? cl.category : "unclassified");
@@ -342,6 +442,13 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     opt.value = team;
     opt.textContent = team;
     teamFilter.appendChild(opt);
+  });
+
+  Object.keys(locationSet).sort().forEach(function(loc){
+    var opt = document.createElement("option");
+    opt.value = loc;
+    opt.textContent = loc;
+    locationFilter.appendChild(opt);
   });
 
   Object.keys(unitSet).sort().forEach(function(unit){
@@ -361,7 +468,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   Object.keys(vminSet).sort().forEach(function(vs){
     var opt = document.createElement("option");
     opt.value = vs;
-    opt.textContent = vs;
+    opt.textContent = vminLabel(vs);
     vminFilter.appendChild(opt);
   });
 
@@ -382,12 +489,25 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
   function getColor(sym, idx){ return sym === "*" ? "#b7e4c7" : COLORS[idx % COLORS.length]; }
   function categoryClassName(cat){ return (cat || "").toLowerCase().replace(/\\s+/g, "_"); }
   function vminClassName(status){ return (status || "unknown").toLowerCase().replace(/\\s+/g, "_"); }
+  function vminLabel(status){
+    var s = (status === null || status === undefined) ? "" : String(status).toLowerCase();
+    if (s === "ok") return "normal";
+    if (s === "no_expected_match") return "no vmin expected";
+    if (s === "missing_found") return "missing found";
+    return s;
+  }
+  function fmtMv(v){
+    if (v === null || v === undefined || v === "") return "-";
+    var n = Number(v);
+    if (!isFinite(n)) return String(v);
+    return (n % 1 === 0 ? n.toFixed(0) : String(n)) + " mV";
+  }
   function formatVminDisplay(vminFound, vminStatus){
     var raw = vminFound ? String(vminFound) : "";
     raw = raw.replace(/^Vmin Found(?: \\(High\\))?:\\s*/i, "");
     if (!raw) raw = "N/A";
     if (vminStatus === "high") return "High: " + raw;
-    if (vminStatus === "ok") return "OK: " + raw;
+    if (vminStatus === "ok") return "Normal: " + raw;
     return raw;
   }
   function deriveVminStatus(e){
@@ -446,7 +566,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
         html += '<div class="inst">' + esc(e.instance) + '</div>';
         html += '<span class="team-tag">' + esc(e.team) + '</span>';
         if (clCat) { html += '<span class="class-tag ' + clCatClass + '">' + clCat + (clConf ? ' ' + clConf : '') + '</span>'; }
-        if (vmStat && vmStat !== 'unknown') { html += '<span class="vmin-tag ' + vmClass + '">VMIN ' + esc(vmStat.toUpperCase()) + '</span>'; }
+        if (vmStat && vmStat !== 'unknown') { html += '<span class="vmin-tag ' + vmClass + '">Vmin: ' + esc(vminLabel(vmStat)) + '</span>'; }
         html += '</div>';
       }
       html += '</div>';
@@ -475,21 +595,20 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
       clText += ' (' + (confRaw * 100).toFixed(0) + '% confidence)';
     }
     var vminStatus = deriveVminStatus(e);
-    var vminDisplay = formatVminDisplay(e.vmin_found, vminStatus);
     var xRange = esc(e.axis.xstart) + " to " + esc(e.axis.xstop) + " step " + esc(e.axis.xstep);
     var yRange = esc(e.axis.ystart) + " to " + esc(e.axis.ystop) + " step " + esc(e.axis.ystep);
     var items = [
       ["Visual ID", e.visual_id],
       ["Team", e.team],
+      ["Location", e.location],
       ["Classification", clText],
-      ["Vmin Status", vminStatus],
+      ["Vmin Status", vminLabel(vminStatus)],
       ["Die ID", e.die_id],
       ["Instance", e.instance],
       ["PList", e.plist],
-      ["Vmin Found", vminDisplay],
-      ["Vmin Expected (mV)", e.vmin_expected_mv],
-      ["Vmin Found (mV)", e.vmin_found_mv],
-      ["Vmin Delta (mV)", e.vmin_delta_mv],
+      ["Vmin Found", fmtMv(e.vmin_found_mv)],
+      ["Vmin Expected", fmtMv(e.vmin_expected_mv)],
+      ["Vmin Delta", fmtMv(e.vmin_delta_mv)],
       ["Vmin Rail", e.vmin_expected_rail],
       ["Vmin Freq", e.vmin_expected_freq],
       ["Source", shortFile(e.source_file)],
@@ -643,6 +762,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 
   function applyFilter(){
     var teamVal = teamFilter.value;
+    var locationVal = locationFilter.value;
     var unitVal = unitFilter.value;
     var classVal = classFilter.value;
     var vminVal = vminFilter.value;
@@ -652,6 +772,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     for (var i = 0; i < entries.length; i++) {
       var e = entries[i];
       if (teamVal && (e.team || "UNKNOWN") !== teamVal) continue;
+      if (locationVal && (e.location || "UNKNOWN") !== locationVal) continue;
       if (unitVal && (e.visual_id || "") !== unitVal) continue;
       if (classVal) {
         var eCat = e.classification_category || ((e.classification && e.classification.category) ? e.classification.category : "unclassified");
@@ -666,6 +787,7 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
           e.instance,
           e.plist,
           e.die_id,
+          e.location,
           e.source_file,
           e.team,
           e.vmin_found,
@@ -685,7 +807,235 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
     renderCards();
   }
 
+  // ===== HeatMaps =====
+  var hmList = document.getElementById("hm-list");
+  var hmGrid = document.getElementById("hm-grid");
+  var hmPoint = document.getElementById("hm-point");
+  var hmInfo = document.getElementById("hm-info");
+  var hmTeamFilter = document.getElementById("hm-team-filter");
+  var hmLocationFilter = document.getElementById("hm-location-filter");
+  var hmGroups = {};
+  var hmOrder = [];
+  var hmSelectedInstance = null;
+
+  Object.keys(teamSet).sort().forEach(function(team){
+    var opt = document.createElement("option");
+    opt.value = team;
+    opt.textContent = team;
+    hmTeamFilter.appendChild(opt);
+  });
+  Object.keys(locationSet).sort().forEach(function(loc){
+    var opt = document.createElement("option");
+    opt.value = loc;
+    opt.textContent = loc;
+    hmLocationFilter.appendChild(opt);
+  });
+
+  function heatColor(ratio){
+    var a = 0.18 + 0.82 * Math.max(0, Math.min(1, ratio));
+    return 'rgba(220,38,38,' + a.toFixed(3) + ')';
+  }
+
+  function failureInfoMap(e){
+    var axis = e.axis || {};
+    var xStart = Number(axis.xstart || 0), xStep = Number(axis.xstep || 1);
+    var yStart = Number(axis.ystart || 0), yStep = Number(axis.ystep || 1);
+    var failures = Array.isArray(e.failures) ? e.failures : [];
+    var map = {};
+    for (var fi = 0; fi < failures.length; fi++) {
+      var f = failures[fi] || {};
+      var fx = Number(f.x), fy = Number(f.y);
+      if (!isFinite(fx) || !isFinite(fy)) continue;
+      var xIdx = Math.round((fx - xStart) / xStep);
+      var yIdx = Math.round((fy - yStart) / yStep);
+      if (!isFinite(xIdx) || !isFinite(yIdx) || xIdx < 0 || yIdx < 0) continue;
+      var k = xIdx + "|" + yIdx;
+      var info = (f.legend_info !== undefined && f.legend_info !== null && String(f.legend_info).trim())
+        ? String(f.legend_info).trim()
+        : ((f.symbol && e.legends && e.legends[f.symbol]) ? String(e.legends[f.symbol]).trim() : "");
+      if (!info) continue;
+      if (!map[k]) map[k] = info;
+    }
+    return map;
+  }
+
+  function buildHeatGroups(){
+    var teamVal = hmTeamFilter.value;
+    var locationVal = hmLocationFilter.value;
+    hmGroups = {}; hmOrder = [];
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      if (teamVal && (e.team || "UNKNOWN") !== teamVal) continue;
+      if (locationVal && (e.location || "UNKNOWN") !== locationVal) continue;
+      var inst = e.instance || "(no instance)";
+      if (!hmGroups[inst]) { hmGroups[inst] = []; hmOrder.push(inst); }
+      hmGroups[inst].push(e);
+    }
+    hmOrder.sort();
+    if (hmSelectedInstance && !hmGroups[hmSelectedInstance]) hmSelectedInstance = null;
+  }
+
+  function renderHmList(){
+    if (!hmOrder.length) { hmList.innerHTML = '<div class="empty">No instances.</div>'; return; }
+    var html = "";
+    for (var g = 0; g < hmOrder.length; g++) {
+      var inst = hmOrder[g];
+      var items = hmGroups[inst];
+      var units = {};
+      for (var j = 0; j < items.length; j++) { units[items[j].visual_id || "?"] = true; }
+      var cls = inst === hmSelectedInstance ? "card active" : "card";
+      html += '<div class="' + cls + ' hm-card" data-inst="' + escAttr(inst) + '">';
+      html += '<div class="inst">' + esc(inst) + '</div>';
+      html += '<span class="team-tag">' + Object.keys(units).length + ' units &middot; ' + items.length + ' shmoos</span>';
+      html += '</div>';
+    }
+    hmList.innerHTML = html;
+    var cards = hmList.querySelectorAll('.hm-card');
+    for (var c = 0; c < cards.length; c++) {
+      cards[c].addEventListener('click', function(){
+        hmSelectedInstance = this.getAttribute('data-inst');
+        renderHmList();
+        renderHeatmap();
+      });
+    }
+  }
+
+  function renderHeatmap(){
+    if (!hmSelectedInstance || !hmGroups[hmSelectedInstance]) {
+      hmGrid.innerHTML = '<div class="empty">Select an instance to view its heatmap.</div>';
+      hmInfo.textContent = "";
+      hmPoint.innerHTML = '<div class="title">Cell Selected</div><div class="empty">Click a cell in the heatmap to see failing units.</div>';
+      return;
+    }
+    var items = hmGroups[hmSelectedInstance];
+    var ref = items[0], bestArea = -1, maxCols = 0, maxRows = 0;
+    for (var i = 0; i < items.length; i++) {
+      var rws = items[i].rows || [];
+      var cols = 0;
+      for (var r = 0; r < rws.length; r++) { if (rws[r].length > cols) cols = rws[r].length; }
+      if (rws.length > maxRows) maxRows = rws.length;
+      if (cols > maxCols) maxCols = cols;
+      var area = rws.length * cols;
+      if (area > bestArea) { bestArea = area; ref = items[i]; }
+    }
+    var axis = ref.axis || {};
+    var xStart = Number(axis.xstart || 0), xStep = Number(axis.xstep || 1);
+    var yStart = Number(axis.ystart || 0), yStep = Number(axis.ystep || 1);
+
+    var unitTotals = {};
+    for (var u = 0; u < items.length; u++) { unitTotals[items[u].visual_id || "?"] = true; }
+    var totalUnitCount = Object.keys(unitTotals).length;
+
+    var cell = {};
+    for (var i2 = 0; i2 < items.length; i2++) {
+      var e2 = items[i2];
+      var vid = e2.visual_id || "?";
+      var rows2 = e2.rows || [];
+      var fMap = failureInfoMap(e2);
+      for (var y = 0; y < rows2.length; y++) {
+        var row = rows2[y];
+        for (var x = 0; x < row.length; x++) {
+          var ch = row[x];
+          if (ch === "*" || ch === " ") continue;
+          var key = x + "|" + y;
+          if (!cell[key]) cell[key] = { units: {}, infos: {} };
+          cell[key].units[vid] = true;
+          var info = fMap[key] || ((e2.legends && e2.legends[ch]) ? e2.legends[ch] : ch);
+          if (!cell[key].infos[vid]) cell[key].infos[vid] = [];
+          if (cell[key].infos[vid].indexOf(info) === -1) cell[key].infos[vid].push(info);
+        }
+      }
+    }
+
+    var html = '<table><tr><td></td>';
+    for (var x1 = 0; x1 < maxCols; x1++) {
+      var xVal = (xStart + x1 * xStep).toFixed(3);
+      html += "<td style='font-size:11px;writing-mode:vertical-rl;transform:rotate(180deg);height:72px;padding:4px 2px'>" + xVal + "</td>";
+    }
+    html += '</tr>';
+    for (var y2 = 0; y2 < maxRows; y2++) {
+      var yVal = (yStart + y2 * yStep).toFixed(4);
+      html += "<tr><td style='font-size:11px;white-space:nowrap;padding-right:8px'>" + yVal + "</td>";
+      for (var x2 = 0; x2 < maxCols; x2++) {
+        var key2 = x2 + "|" + y2;
+        var c2 = cell[key2];
+        var cnt = c2 ? Object.keys(c2.units).length : 0;
+        if (cnt === 0) {
+          html += '<td class="pass">&middot;</td>';
+        } else {
+          var ratio = totalUnitCount ? cnt / totalUnitCount : 0;
+          html += '<td class="fail" data-key="' + key2 + '" data-xidx="' + x2 + '" data-yidx="' + y2 + '" title="' + cnt + ' / ' + totalUnitCount + ' units" style="background:' + heatColor(ratio) + '">' + cnt + '</td>';
+        }
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+    hmGrid.innerHTML = html;
+
+    hmInfo.textContent = "Instance: " + hmSelectedInstance + "  |  " + totalUnitCount + " units overlaid  |  grid " + maxCols + " x " + maxRows;
+    hmPoint.innerHTML = '<div class="title">Cell Selected</div><div class="empty">Click a cell in the heatmap to see failing units.</div>';
+
+    var cells = hmGrid.querySelectorAll('td.fail');
+    for (var q = 0; q < cells.length; q++) {
+      cells[q].addEventListener('click', (function(cellRef, axisRef, total){
+        return function(){
+          var key = this.getAttribute('data-key');
+          var xidx = this.getAttribute('data-xidx');
+          var yidx = this.getAttribute('data-yidx');
+          var cc = cellRef[key] || { units: {}, infos: {} };
+          var vids = Object.keys(cc.units).sort();
+          var xv = Number(axisRef.xstart || 0) + Number(xidx) * Number(axisRef.xstep || 1);
+          var yv = Number(axisRef.ystart || 0) + Number(yidx) * Number(axisRef.ystep || 1);
+          var rowsHtml = "";
+          for (var v = 0; v < vids.length; v++) {
+            var infos = (cc.infos[vids[v]] || []).join(" ; ");
+            rowsHtml += '<tr><td>' + esc(vids[v]) + '</td><td>' + esc(infos || "-") + '</td></tr>';
+          }
+          hmPoint.innerHTML =
+            '<div class="title">Cell Selected</div>' +
+            '<div><b>Grid Index:</b> x=' + esc(xidx) + ', y=' + esc(yidx) + '</div>' +
+            '<div><b>X Value:</b> ' + esc(xv.toFixed(6)) + '</div>' +
+            '<div><b>Y Value:</b> ' + esc(yv.toFixed(6)) + '</div>' +
+            '<div><b>Failing Units:</b> ' + vids.length + ' / ' + total + '</div>' +
+            '<table class="legend-tbl"><tr><th>Visual ID</th><th>Failing Legend</th></tr>' + rowsHtml + '</table>';
+        };
+      })(cell, axis, totalUnitCount));
+    }
+  }
+
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  var viewShmoos = document.getElementById('view-shmoos');
+  var viewHeatmaps = document.getElementById('view-heatmaps');
+  function switchView(name){
+    var isHeat = name === 'heatmaps';
+    if (viewShmoos) viewShmoos.classList.toggle('active', !isHeat);
+    if (viewHeatmaps) viewHeatmaps.classList.toggle('active', isHeat);
+    document.body.classList.toggle('heatmaps-active', isHeat);
+    for (var t = 0; t < tabBtns.length; t++) {
+      tabBtns[t].classList.toggle('active', tabBtns[t].getAttribute('data-view') === name);
+    }
+    if (isHeat) {
+      if (!hmSelectedInstance && hmOrder.length) hmSelectedInstance = hmOrder[0];
+      renderHmList();
+      renderHeatmap();
+    }
+  }
+  for (var tb = 0; tb < tabBtns.length; tb++) {
+    tabBtns[tb].addEventListener('click', function(){ switchView(this.getAttribute('data-view')); });
+  }
+  buildHeatGroups();
+
+  function onHeatFilterChange(){
+    buildHeatGroups();
+    if (!hmSelectedInstance && hmOrder.length) hmSelectedInstance = hmOrder[0];
+    renderHmList();
+    renderHeatmap();
+  }
+  hmTeamFilter.addEventListener('change', onHeatFilterChange);
+  hmLocationFilter.addEventListener('change', onHeatFilterChange);
+
   teamFilter.addEventListener('change', applyFilter);
+  locationFilter.addEventListener('change', applyFilter);
   unitFilter.addEventListener('change', applyFilter);
   classFilter.addEventListener('change', applyFilter);
   vminFilter.addEventListener('change', applyFilter);
@@ -697,6 +1047,29 @@ header .info{font-size:.82rem;color:#5a6e66;margin-top:4px}
 </html>""")
 
     return "".join(parts)
+
+
+def derive_report_title(entries, path_folder):
+    """Return the VPO number if a single VPO is present, else the source folder name."""
+    vpos = set()
+    for entry in entries:
+        src = entry.get("source_file") or ""
+        if not src:
+            continue
+        base = Path(str(src).replace("\\", "/")).name
+        vpo = base.split("_", 1)[0].strip()
+        if vpo:
+            vpos.add(vpo)
+
+    if len(vpos) == 1:
+        return next(iter(vpos))
+
+    if path_folder:
+        folder = Path(str(path_folder).replace("\\", "/")).name
+        if folder:
+            return folder
+
+    return next(iter(vpos)) if vpos else None
 
 
 def main() -> None:
@@ -744,6 +1117,8 @@ def main() -> None:
 
     slim_entries = [slim_entry(entry) for entry in entries]
 
+    report_title = derive_report_title(slim_entries, payload.get("path_folder"))
+
     meta = {
         "files_scanned": payload.get("files_scanned"),
         "files_with_shmoo": payload.get("files_with_shmoo"),
@@ -757,6 +1132,7 @@ def main() -> None:
             ]
         ),
         "path_folder": payload.get("path_folder"),
+        "report_title": report_title,
         "filter_visual_id": args.visual_id or None,
         "filter_team": args.team or None,
         "filter_plist": args.plist or None,

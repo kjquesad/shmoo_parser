@@ -1057,6 +1057,31 @@ def _entry_matches_team_filter(entry: Dict[str, Any], team_filter: str) -> bool:
     return all(token in context for token in tokens)
 
 
+KNOWN_LOCATIONS = [
+    "CLASSHOT",
+    "CLASSCOLD",
+    "CLASSROOM",
+    "CLASS",
+    "PHMHOT",
+    "PHMCOLD",
+    "PHM",
+    "QAHOT",
+    "QACOLD",
+    "CSM",
+    "HOT",
+    "COLD",
+]
+
+
+def _extract_location_from_filename(file_path: Path) -> Optional[str]:
+    """Derive a test location (e.g. CLASSHOT, CSM, PHMHOT) from the file name."""
+    name = file_path.stem.upper()
+    for location in KNOWN_LOCATIONS:
+        if location in name:
+            return location
+    return None
+
+
 def parse_inputs(input_path: Path, recursive: bool, team_filter: str = "") -> Dict[str, Any]:
     """Parse all supported input files and return one JSON object."""
     files = find_input_files(input_path, recursive)
@@ -1076,10 +1101,12 @@ def parse_inputs(input_path: Path, recursive: bool, team_filter: str = "") -> Di
         if parsed:
             files_with_shmoo += 1
             source_file = str(file_path)
+            location = _extract_location_from_filename(file_path)
             for entry in parsed:
                 visual_id = entry.get("visual_id") or "NO_VISUAL_ID"
                 entry_with_source = dict(entry)
                 entry_with_source["source_file"] = source_file
+                entry_with_source["location"] = location
                 grouped_shmoos[visual_id].append(entry_with_source)
             total_shmoos += len(parsed)
 

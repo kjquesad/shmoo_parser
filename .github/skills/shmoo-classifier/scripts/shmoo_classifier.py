@@ -7,7 +7,7 @@ based on spatial fail distribution analysis.
 
 Categories:
   - red        : Failing across nearly all points (>=95% fail)
-  - clean      : Passing across nearly all points (<=2% fail)
+  - clean      : Passing across nearly all points (<=5% fail, or low top/bottom fails)
   - ceiling    : Fails concentrated at high Y (top rows = high voltage)
   - floor      : Fails concentrated at low Y (bottom rows = low voltage)
   - speed_limit: Fails concentrated at high X (right columns = high timing)
@@ -307,8 +307,9 @@ def classify_shmoo(features):
     if tfr >= 0.95:
         return "red", min(1.0, tfr)
 
-    # 2. Clean/Green — nearly all passing
-    if tfr <= 0.02:
+    # 2. Clean/Green — nearly all passing (wide margin)
+    #    Also treat a thin low-voltage fail band (only lowest rows fail) as clean.
+    if tfr <= 0.05 or (top < 0.02 and bot <= 0.25):
         return "clean", 1.0 - tfr
 
     # 3. Diagonal — classic V-T tradeoff boundary
@@ -316,18 +317,18 @@ def classify_shmoo(features):
         confidence = 0.8
         return "diagonal", confidence
 
-    # 4. Speckled — structured trend with noisy scattered fail pattern
-    if (
-        0.10 <= tfr <= 0.90
-        and (avg_transitions >= 1.15 or max_transitions >= 4)
-        and largest_cluster <= 0.95
-        and (bot >= 0.45 or top >= 0.45)
+    # 4. Speckled — scattered isolated fails superimposed on a structured trend
+    #    Two ways to qualify: sparse isolated scatter, or dense scatter with many
+    #    per-row pass/fail transitions (clusters merge and lower the isolated ratio).
+    if 0.10 <= tfr <= 0.75 and (
+        (isolated >= 0.30 and largest_cluster <= 0.55 and (bot >= 0.50 or is_diag))
+        or (avg_transitions >= 3.0 or max_transitions >= 5)
     ):
-        confidence = min(1.0, (avg_transitions / 2.0 + (1.0 - largest_cluster)) / 2)
+        confidence = min(1.0, (isolated + (1.0 - largest_cluster)) / 2)
         return "speckled", round(confidence, 3)
 
     # 5. Ceiling — fails at high Y (top), passes at low Y (bottom)
-    if top >= 0.75 and bot <= 0.35 and tfr > 0.1:
+    if top >= 0.50 and bot <= 0.15 and tfr > 0.1:
         confidence = min(1.0, (top - bot))
         return "ceiling", round(confidence, 3)
 
@@ -336,14 +337,14 @@ def classify_shmoo(features):
         confidence = min(1.0, (bot - top))
         return "floor", round(confidence, 3)
 
-    # 7. Left wall — strong left-edge fail wall across Y
-    if left_edge >= 0.90 and right <= 0.20 and tfr > 0.15:
-        confidence = min(1.0, left_edge - right)
+    # 7. Left wall — left-edge fail wall with passing center/right window
+    if left_edge >= 0.55 and center_band <= 0.35 and right <= 0.35 and tfr > 0.15:
+        confidence = min(1.0, left_edge - max(center_band, right))
         return "left wall", round(confidence, 3)
 
-    # 8. Right wall — strong right-edge fail wall across Y
-    if right_edge >= 0.90 and left <= 0.20 and tfr > 0.15:
-        confidence = min(1.0, right_edge - left)
+    # 8. Right wall — right-edge fail wall with passing center/left window
+    if right_edge >= 0.55 and center_band <= 0.35 and left <= 0.35 and tfr > 0.15:
+        confidence = min(1.0, right_edge - max(center_band, left))
         return "right wall", round(confidence, 3)
 
     # 9. Speed limit — fails at high X (right), passes at low X (left)

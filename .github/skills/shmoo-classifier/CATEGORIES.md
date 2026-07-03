@@ -26,9 +26,9 @@ XXXXXXX
 
 **Description**: The shmoo passes across nearly all points. The unit has a wide operating margin.
 
-**Rule**: Total fail ratio ≤ 2%
+**Rule**: Total fail ratio ≤ 5% or (bottom-half fail ratio ≤ 25% and top-half fail ratio <2%)
 
-**Typical cause**: Healthy unit with good margins.
+**Typical cause**: Healthy unit with good margins. Includes units where only a thin band of the lowest-voltage rows fails while the rest of the shmoo passes cleanly (wide operating margin, no meaningful floor).
 
 ```
 *******
@@ -36,6 +36,21 @@ XXXXXXX
 *******
 *******
 *******
+```
+
+```
+*******
+*******
+*******
+*******
+XXX****
+```
+```
+*******
+*******
+*******
+*****XX
+XXXXXXX
 ```
 
 ---
@@ -44,7 +59,7 @@ XXXXXXX
 
 **Description**: Failures are concentrated at high Y values (top of the shmoo). The unit fails at high voltage but passes at lower voltages.
 
-**Rule**: Top-half fail ratio ≥ 75% AND bottom-half fail ratio ≤ 35%
+**Rule**: Top-half fail ratio ≥ 50% AND bottom-half fail ratio ≤ 15%
 
 **Typical cause**: Overvoltage sensitivity, oxide breakdown risk, or power delivery issue at high voltage.
 
@@ -52,6 +67,24 @@ XXXXXXX
 XXXXXXX   ← high voltage (fails)
 XXXXXXX
 XXX****
+*******
+*******   ← low voltage (passes)
+```
+
+
+```
+XXXXXXX   ← high voltage (fails)
+XXXXX**
+*******
+*******
+*******   ← low voltage (passes)
+```
+
+
+```
+XXXXXXX   ← high voltage (fails)
+*******
+*******
 *******
 *******   ← low voltage (passes)
 ```
@@ -286,11 +319,15 @@ XXXXXXX
 2. Compute 8-neighbor fail count for each fail cell.
 3. Define isolated fail as fail cell with <=1 failing neighbor.
 4. Connected-components on fail cells (8-connectivity) to get largest fail cluster.
-5. Classify `speckled` when all are true:
-  - `0.10 <= total_fail_ratio <= 0.75`
-  - `isolated_fail_ratio >= 0.30` (isolated fails / total fails)
-  - `largest_cluster_ratio <= 0.55` (largest fail component / total fails)
-  - At least one structured trend exists (`bot_fail_ratio >= 0.50` OR diagonal consistency >= 0.60)
+5. Classify `speckled` when **either** scatter profile holds:
+  - **Sparse scatter**: all of
+    - `0.10 <= total_fail_ratio <= 0.75`
+    - `isolated_fail_ratio >= 0.30` (isolated fails / total fails)
+    - `largest_cluster_ratio <= 0.55` (largest fail component / total fails)
+    - At least one structured trend exists (`bot_fail_ratio >= 0.50` OR diagonal consistency >= 0.60)
+  - **Dense scatter**: both
+    - `0.10 <= total_fail_ratio <= 0.75`
+    - `avg_row_transitions >= 3.0` OR `max_row_transitions >= 5` (many pass/fail flips per row; clusters merge so the isolated ratio alone understates the scatter)
 
 **Why this works**: It separates noisy scatter from contiguous categories like `floor`, `ceiling`, `speed_limit`, `corner_*`, and `crack`.
 
@@ -321,7 +358,7 @@ XXXXXXX   ← low voltage (fails)
 | Category | Fail Location | Confidence Metric |
 |----------|--------------|-------------------|
 | red | Everywhere (≥95%) | fail ratio |
-| clean | Nowhere (≤2%) | 1 - fail ratio |
+| clean | Nowhere (≤5%, or thin low-V band) | 1 - fail ratio |
 | ceiling | Top rows (high V) | top - bottom ratio |
 | floor | Bottom rows (low V) | bottom - top ratio |
 | speed_limit | Right cols (high timing) | right - left ratio |
