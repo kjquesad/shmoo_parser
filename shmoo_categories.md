@@ -1,0 +1,3691 @@
+# Shmoo Category Reference
+
+Cleaned reference of shmoo pattern classes, extracted from the Shmooify “Training Data — Per-Class Notes” docs. Reference examples are 11×11 grids using `A` = pass and `*` = fail; the structural rules are described per-row so they can be generalized to any grid dimension.
+
+## Contents
+
+- **crack**
+  - [crack curve BL-to-UR](#crack-curve-bl-to-ur)
+  - [crack horiz-1band-mid-Ledge](#crack-horiz-1band-mid-ledge)
+  - [crack horiz-1band-mid-open](#crack-horiz-1band-mid-open)
+  - [crack horiz-3band-bot-dominant-Ledge](#crack-horiz-3band-bot-dominant-ledge)
+  - [crack horiz-3band-clean](#crack-horiz-3band-clean)
+  - [crack horiz-3band-noisy](#crack-horiz-3band-noisy)
+  - [crack horiz-3band-noisy-thick](#crack-horiz-3band-noisy-thick)
+  - [crack horiz-stepped-lower](#crack-horiz-stepped-lower)
+- **marginal**
+  - [marginal curve-BL-to-UR](#marginal-curve-bl-to-ur)
+  - [marginal horiz-band-mid](#marginal-horiz-band-mid)
+  - [marginal horiz-passing-1band](#marginal-horiz-passing-1band)
+  - [marginal horiz-passing-2band](#marginal-horiz-passing-2band)
+  - [marginal horiz-special-stepped](#marginal-horiz-special-stepped)
+  - [marginal vert-curve](#marginal-vert-curve)
+- **near-solid**
+  - [near-solid horiz-bl cntr ur](#near-solid-horiz-bl-cntr-ur)
+  - [near-solid horiz-bot-br](#near-solid-horiz-bot-br)
+  - [near-solid horiz-crack-1line-noisy](#near-solid-horiz-crack-1line-noisy)
+  - [near-solid horiz-crack-center-scattered](#near-solid-horiz-crack-center-scattered)
+  - [near-solid horiz-thin-edge](#near-solid-horiz-thin-edge)
+  - [near-solid vert-3corners-ul-bl-br](#near-solid-vert-3corners-ul-bl-br)
+- **passing**
+  - [passing horiz-1band-top-edge](#passing-horiz-1band-top-edge)
+  - [passing horiz-1row-Ledge](#passing-horiz-1row-ledge)
+  - [passing horiz-2row-top-bot](#passing-horiz-2row-top-bot)
+- **speckles**
+  - [speckles curve-BL-to-UR-noisy](#speckles-curve-bl-to-ur-noisy)
+  - [speckles curve-BL-to-UR-tight](#speckles-curve-bl-to-ur-tight)
+  - [speckles inmarginal-curve](#speckles-inmarginal-curve)
+
+# Family: crack
+
+## crack_curve_BL-to-UR
+
+**Display name:** crack curve BL-to-UR  
+**Family:** crack  
+**Class id:** `crack_curve_BL-to-UR`
+
+### Class Description
+
+crack_curve_BL-to-UR is a shmoo pattern with a curved crack line that sweeps from the Bottom-Left corner toward the Upper-Right corner of an 11×11 grid.
+
+The grid uses two characters: - A = pass (silicon passes at that voltage/frequency point) - * = fail (silicon fails at that voltage/frequency point)
+
+Rows are separated by underscores (_). Row 0 is the top row; Row 10 is the bottom row. Columns 0–10 go left to right.
+
+### Visual Structure
+
+The pattern has four zones per row arranged left-to-right:
+
+[PASS_BLOCK] [CRACK_*] [ISLAND_A] [TRAILING_*]
+PASS_BLOCK — Leading contiguous A cells from the left edge. Wide at the top (Row 0: 8–11 A's) and narrows smoothly toward the bottom (Row 10: 1–2 A's), forming the main pass region. Decreases by exactly 1 (sometimes 2) per row — never increases.
+CRACK_* — A narrow band of contiguous * cells (1–4 wide, typically 1–3) representing the crack line. Follows the BL-to-UR curve.
+ISLAND_A — A small contiguous block of A cells (1–3 wide) appearing after the crack from Row 3 onward. This island represents the secondary pass region on the other side of the crack. It is always present from Row 3 to Row 10, and its width gently decreases toward the bottom rows.
+TRAILING_* — Remaining * cells filling the right/lower fail region. Zero or minimal in the top rows, growing to dominate the bottom-right.
+The overall visual impression is a smooth curved diagonal boundary separating a Pass region (upper-left) from a Fail region (lower-right), with a thin secondary pass island tracing a parallel curve just to the right of the main crack.
+
+### Reference Example (S00572)
+
+```text
+Row 0:  AAAAAAAAAA*     pass=10  crack=1  island=0  trail=0
+Row 1:  AAAAAAAAA**     pass=9   crack=2  island=0  trail=0
+Row 2:  AAAAAAAA***     pass=8   crack=3  island=0  trail=0
+Row 3:  AAAAAAA**AA     pass=7   crack=2  island=2  trail=0
+Row 4:  AAAAA****A*     pass=5   crack=4  island=1  trail=1
+Row 5:  AAAA***AAA*     pass=4   crack=3  island=3  trail=1
+Row 6:  AAA**AAA***     pass=3   crack=2  island=3  trail=3
+Row 7:  AA**AA*****     pass=2   crack=2  island=2  trail=5
+Row 8:  A***AA*****     pass=1   crack=3  island=2  trail=5
+Row 9:  A*AA*******     pass=1   crack=1  island=2  trail=7
+Row10:  A*A********     pass=1   crack=1  island=1  trail=8
+```
+Visual (. = pass/A, # = fail/*):
+
+```text
+..........#
+.........##
+........###
+.......##..
+.....####.#
+....###...#
+...##...###
+..##..#####
+.###..#####
+.#..#######
+.#.########
+```
+
+### Per-Row Generation Rules
+
+Each row follows the structure: A × pass_width + * × crack_width + A × island_width + * × trail_width, where all four must sum to exactly 11.
+
+| Row | pass_width | crack_width | island_width | trail_width |
+| --- | --- | --- | --- | --- |
+| 0 | 8–11 | 0–3 | 0 | 0 |
+| 1 | 7–10 | 1–4 | 0 | 0 |
+| 2 | 6–9 | 2–5 | 0–2 | 0 |
+| 3 | 5–8 | 1–3 | 1–3 | 0–2 |
+| 4 | 4–6 | 2–4 | 1–3 | 0–3 |
+| 5 | 3–5 | 2–4 | 1–3 | 0–3 |
+| 6 | 2–4 | 1–3 | 1–3 | 2–5 |
+| 7 | 1–3 | 1–3 | 1–3 | 3–6 |
+| 8 | 1–2 | 1–3 | 1–3 | 4–7 |
+| 9 | 1–2 | 1–2 | 1–2 | 5–8 |
+| 10 | 1–2 | 1–2 | 1–2 | 6–8 |
+
+### Key Constraints
+
+Monotonic pass curve: pass_width must strictly decrease (or occasionally stay the same for 1 adjacent pair) from Row 0 to Row 10. The decrease is smooth — typically 1 per row, sometimes 2, never more than 2.
+Smooth transitions: Between adjacent rows, pass_width changes by 0, 1, or 2. A step of 2 is allowed but should not occur more than twice across all 11 rows.
+Crack width stays narrow: crack_width is 1–3 (rarely 4). It should not exceed 4 in any row.
+Island always present Rows 3–10: From Row 3 onward, island_width is always >= 1. The island width is typically 1–3 and gently decreases toward the bottom rows.
+Island absent in Rows 0–1: island_width = 0 for Rows 0 and 1. Row 2 may have 0–2.
+Total = 11: All four segments must sum to exactly 11 for every row.
+Bottom rows stabilize: Rows 8–10 have pass_width of 1 (sometimes 2), with the island still present as 1–2 A's.
+Top row mostly pass: Row 0 is almost entirely A (8–11 A's), with fail cells only at the right edge.
+No scattered cells: Each zone is a contiguous block. The pattern is strictly A*A* (four contiguous blocks), never fragmented or interleaved beyond this structure.
+
+### Dominant Segment Patterns per Row
+
+| Row | Pattern | Description |
+| --- | --- | --- |
+| 0 | A or A* | All pass, or pass with 1–3 trailing * |
+| 1 | A* | Pass block then fail |
+| 2 | A* or A*A | Pass, crack, optional small island |
+| 3 | A*A or A*A* | Pass, crack, island (+ optional trail) |
+| 4–7 | A*A* | Pass, crack, island, trailing fail |
+| 8–10 | A*A* | Small pass, crack, small island, large trail |
+
+### Algorithm to Generate a New Shmoo Chars
+
+1. Pick pass_width for Row 0: random integer in [8, 11] (weighted toward 9–10).
+2. For each subsequent row (1–10):
+   a. Decrease pass_width by 1 (80% chance) or 2 (15% chance) or 0 (5% chance).
+   b. Clamp pass_width to the min/max for that row (see table).
+   c. Ensure pass_width does not go below 1.
+3. For each row, pick crack_width:
+   - Random in [1, 3] (weighted toward 2).
+   - For Row 0: 0 if pass_width == 11, else [1, 3].
+   - Never exceed 4.
+4. Determine island_width:
+   - Rows 0–1: always 0.
+   - Row 2: 0 (60%) or 1–2 (40%).
+   - Rows 3–10: always >= 1. Pick 1 (40%), 2 (35%), 3 (25%).
+     Island width should gently decrease from Rows 3 toward Row 10.
+5. trail_width = 11 - pass_width - crack_width - island_width.
+   - If trail_width < 0: reduce island_width first (min 1 for rows 3–10, min 0 for others).
+   - If still < 0: reduce crack_width (min 1).
+   - trail_width must be >= 0.
+6. Build row string: ('A' * pass_width) + ('*' * crack_width) + ('A' * island_width) + ('*' * trail_width).
+7. Join all 11 rows with '_'.
+
+### Validation Checklist
+
+[ ] Grid is exactly 11 rows × 11 columns.
+[ ] Only characters A and * are used.
+[ ] Rows separated by _ (10 underscores total).
+[ ] Row 0 has 8–11 leading A's; fail cells only at the right edge.
+[ ] pass_width decreases monotonically (or stays same) top to bottom.
+[ ] Adjacent rows differ in pass_width by at most 2.
+[ ] crack_width is 1–3 in every row (at most 4).
+[ ] island_width >= 1 for every row from Row 3 to Row 10.
+[ ] island_width = 0 for Rows 0–1.
+[ ] Each row has exactly 4 contiguous blocks: A*A* (from Row 3 onward).
+[ ] Bottom rows (8–10) keep pass_width at 1–2 with island 1–2.
+[ ] Each row sums to exactly 11 characters.
+[ ] No scattered or fragmented A/* cells — each zone is a contiguous block.
+
+---
+
+## crack_horiz-1band-mid-Ledge
+
+**Display name:** crack horiz-1band-mid-Ledge  
+**Family:** crack  
+**Class id:** `crack_horiz-1band-mid-Ledge`
+
+### Class Description
+
+crack_horiz-1band-mid-Ledge is a shmoo pattern featuring a single horizontal pass band running across the middle of an 11×11 grid, with a left-edge ledge (column 0 is always A in every row).
+
+The grid uses two characters: - A = pass (silicon passes at that voltage/frequency point) - * = fail (silicon fails at that voltage/frequency point)
+
+Rows are separated by underscores (_). Row 0 is the top row; Row 10 is the bottom row. Columns 0–10 go left to right.
+
+### Visual Structure
+
+The pattern has five horizontal zones from top to bottom:
+
+Rows 0–1:  Full pass (all A)
+```text
+Row  2:    Upper fail region (col 0 = A, rest mostly *)
+```
+Rows 3–4:  Upper transition (col 0 = A, scattered A's increasing toward band)
+```text
+Row  5:    PASS BAND (col 0 = A, most/all cells = A) — the main horizontal band
+```
+Rows 6–7:  Lower transition (col 0 = A, scattered A's decreasing from band)
+Rows 8–10: Lower fail region (col 0 = A, rest mostly *)
+Key defining feature — Left Edge Ledge: Column 0 is always A in every single row (100% of samples). This creates a continuous vertical pass stripe along the left edge, which is the "Ledge" in the class name.
+
+### Reference Examples
+
+Example 1 (S00102):                Example 2 (S00108):
+```text
+Row 0:  AAAAAAAAAAA  (all pass)    Row 0:  AAAAAAAAAAA
+Row 1:  AAAAAAAAAAA  (all pass)    Row 1:  AAAAAAAAAAA
+Row 2:  A**********  (fail+ledge)  Row 2:  A**********
+Row 3:  A**********  (fail+ledge)  Row 3:  A**********
+Row 4:  AA********A  (transition)  Row 4:  AA*****AA*A
+Row 5:  AAAAAAAAAAA  (pass band)   Row 5:  AAAAAAAAAAA
+Row 6:  A***AAA***A  (transition)  Row 6:  A**AAA***A*
+Row 7:  A**********  (fail+ledge)  Row 7:  A**********
+Row 8:  A**********  (fail+ledge)  Row 8:  A**********
+Row 9:  A**********  (fail+ledge)  Row 9:  A**********
+Row10:  A**********  (fail+ledge)  Row10:  A**********
+```
+
+Example 3 (S00148):                Example 4 (S00137):
+```text
+Row 0:  AAAAAAAAAAA                Row 0:  AAAAAAAAAAA
+Row 1:  AAAAAAAAAAA                Row 1:  AAAAAAAAAAA
+Row 2:  A********A*                Row 2:  AA********A
+Row 3:  A*AA**AAAAA                Row 3:  A*********A
+Row 4:  AAAAAAAAAAA                Row 4:  A****AAA***
+Row 5:  AAAAAAAAAAA                Row 5:  AAAAA**AAA*
+Row 6:  AA*AAAA****                Row 6:  AAAAAAAAAAA
+Row 7:  AA*********                Row 7:  AAAAAAAAAAA
+Row 8:  A**********                Row 8:  A*A******AA
+Row 9:  A**********                Row 9:  A*A********
+Row10:  A**********                Row10:  A*A********
+```
+Visual (. = A/pass, # = */fail):
+
+S00102:           S00148:
+```text
+...........       ...........
+...........       ...........
+.##########       .########.#
+.##########       .#..##.....
+..########.       ...........
+...........       ...........
+.###...###.       ..#....####
+.##########       ..#########
+.##########       .##########
+.##########       .##########
+.##########       .##########
+```
+
+### Per-Row Generation Rules
+
+| Row | Role | A count (cols 1–10) | Col 0 | Description |
+| --- | --- | --- | --- | --- |
+| 0 | Full pass | 10 (all A) | A | Always all A |
+| 1 | Full pass | 10 (all A) | A | Always all A |
+| 2 | Upper fail | 0–3 (mostly 0) | A | Mostly *, occasional 1–3 scattered A's |
+| 3 | Upper transition | 0–7 (avg ~2.6) | A | Scattered A's, varies widely |
+| 4 | Upper transition | 1–10 (avg ~5.8) | A | More A's emerging, often with gaps |
+| 5 | Pass band | 1–10 (avg ~7.6) | A | 62% chance all A; otherwise 3–8 scattered A's |
+| 6 | Lower transition | 0–10 (avg ~4.9) | A | 36% chance all A; otherwise fading A's |
+| 7 | Lower transition | 0–10 (avg ~2.0) | A | 72% pattern A*; mostly fail with few A's |
+| 8 | Lower fail | 0–4 (avg ~0.3) | A | Mostly *, rare 1–3 scattered A's |
+| 9 | Lower fail | 0–1 (avg ~0.1) | A | Almost always just col 0 = A, rest * |
+| 10 | Lower fail | 0–1 (avg ~0.1) | A | Almost always just col 0 = A, rest * |
+
+### Key Constraints
+
+Column 0 always A: Every row starts with A — this is the left-edge ledge, the defining feature of this class.
+Rows 0–1 always all A: The top two rows are always AAAAAAAAAAA.
+Pass band at rows 4–5: The horizontal pass band centers around rows 4–5 (sometimes extending to rows 3 or 6). Row 5 is all-A in 62% of samples.
+Symmetric fade: A-count increases from Row 2 toward the band (Row 5), then decreases from the band toward Row 10.
+Bottom heavier fail: The lower fail region (rows 8–10) is denser than the upper fail (row 2 alone), making the pattern asymmetric — more fail below the band.
+Transition rows have scattered A's: Rows 3–4 and 6–7 contain random scattered A cells (not necessarily contiguous), creating noisy edges around the pass band.
+Rows 9–10 nearly identical: Both are almost always A********** (just the ledge).
+
+### Transition Row Patterns (cols 1–10)
+
+The A's in transition rows (3, 4, 6, 7) are scattered — they don't form clean contiguous blocks. Common segment patterns:
+
+| Row | Common Patterns | Notes |
+| --- | --- | --- |
+| 3 | A* (24%), A*A* (34%), A*A*A* (18%) | 0–7 A's in cols 1–10, scattered |
+| 4 | A*A*A (54%), A*A*A*A (16%) | Multiple A-clusters with gaps |
+| 6 | A (36%), A* (28%), A*A (12%) | Often all-A or trailing fail |
+| 7 | A* (72%), A*A* (16%) | Mostly fail after initial A's |
+
+### Algorithm to Generate a New Shmoo Chars
+
+1. Row 0: always "AAAAAAAAAAA"
+2. Row 1: always "AAAAAAAAAAA"
+3. Row 2 (upper fail):
+   - Col 0 = A
+   - Cols 1–10: each cell = * with 85% probability, A with 15%
+   - Ensure at least 7 of cols 1–10 are * (it's a fail row)
+4. Row 3 (upper transition):
+   - Col 0 = A
+   - Cols 1–10: each cell = A with 25% probability, * with 75%
+   - A count in cols 1–10 should be 0–7
+5. Row 4 (upper transition):
+   - Col 0 = A
+   - Cols 1–10: each cell = A with 55% probability, * with 45%
+   - A count in cols 1–10 should be 1–10
+6. Row 5 (pass band):
+   - 62% chance: all "AAAAAAAAAAA"
+   - 38% chance: Col 0 = A, then cols 1–10 each A with 60% probability
+   - A count in cols 1–10 should be >= 1
+7. Row 6 (lower transition):
+   - 36% chance: all "AAAAAAAAAAA"
+   - 64% chance: Col 0 = A, cols 1–10 each A with 45% probability
+8. Row 7 (lower transition):
+   - 10% chance: all "AAAAAAAAAAA"
+   - 90% chance: Col 0 = A, cols 1–10 each A with 20% probability
+9. Row 8 (lower fail):
+   - Col 0 = A
+   - Cols 1–10: each cell = * with 97% probability, A with 3%
+   - A count in cols 1–10 should be 0–3
+10. Row 9 (lower fail):
+    - Col 0 = A
+    - Cols 1–10: each cell = * with 99% probability, A with 1%
+    - A count in cols 1–10 should be 0–1
+11. Row 10 (lower fail):
+    - Same as Row 9
+12. Join all 11 rows with '_'.
+
+### Validation Checklist
+
+[ ] Grid is exactly 11 rows × 11 columns.
+[ ] Only characters A and * are used.
+[ ] Rows separated by _ (10 underscores total).
+[ ] Column 0 is A in every row (the left-edge ledge).
+[ ] Rows 0 and 1 are always AAAAAAAAAAA.
+[ ] Row 2 is mostly fail (0–3 A's in cols 1–10).
+[ ] Pass band peaks at rows 4–5 with highest A density.
+[ ] A-count increases from Row 2 → Row 5, then decreases Row 5 → Row 10.
+[ ] Rows 9–10 are mostly A**********.
+[ ] Each row sums to exactly 11 characters.
+
+---
+
+## crack_horiz-1band-mid-open
+
+**Display name:** crack horiz-1band-mid-open  
+**Family:** crack  
+**Class id:** `crack_horiz-1band-mid-open`
+
+SKILL: crack_horiz-1band-mid-open
+
+### Class Description
+
+A horizontal 1-band shmoo pattern centred in the middle of an 11×11 grid. The "open" variant has no column-0 ledge — all cells are unconstrained, unlike the "Ledge" sibling class where column 0 is always A.
+
+The pattern consists of: - Top pass zone (rows 0-1): always all-A. - Upper fail zone (row 2, sometimes row 3): mostly or entirely *. - Pass band centred around rows 4-5 (±1): a horizontal stripe of high-A cells, with row 5 being the most reliably all-A row. - Lower fail zone (rows 7-8): mostly or entirely *. - Bottom fail zone (rows 9-10): always all-*.
+
+### Visual Structure
+
+```text
+Row  0: AAAAAAAAAAA          ← always all-A
+Row  1: AAAAAAAAAAA          ← always all-A
+Row  2: ***********          ← mostly all-* (69%), else 1-4 scattered A's
+Row  3: ***..mixed..**       ← 0-8 A's (avg 2.9), often all-*
+Row  4: A*..mixed..AA        ← 1-11 A's (avg 6.2), upper band edge
+Row  5: AAAAAAAAAAA          ← core band: 63% all-A, else 2-10 A's (avg 8.6)
+Row  6: *..mixed..*          ← 0-11 A's (avg 5.7), lower band edge
+Row  7: ***..sparse..***     ← 0-11 A's (avg 2.3), often all-*
+Row  8: ***********          ← mostly all-* (86%), else 1-4 A's
+Row  9: ***********          ← always all-*
+Row 10: ***********          ← always all-*
+```
+Structural Variants
+The 51 training examples fall into two main structural types based on how the pass band interacts with adjacent rows:
+
+Variant A — Narrow band, no row-2 A's (~60%)
+```text
+Row 2: all-*
+Row 3: all-* or sparse (0-1 A's)
+Row 4: mixed (1-8 A's) — upper transition
+Row 5: all-A (core band)
+Row 6: mixed (1-7 A's) — lower transition
+Row 7: all-*
+Row 8: all-*
+```
+Approximately half of Variant-A entries have extended band where rows 5-6 (or 5-7) are all-A, pushing the lower transition one or two rows down.
+
+Variant B — Spread band, row-2 has A's (~40%)
+```text
+Row 2: 1-4 scattered A's
+Row 3: 1-8 A's (moderate)
+Row 4: 6-8 A's (high)
+Row 5: 2-11 A's (mostly high, not always all-A)
+Row 6: 0-4 A's (lower transition)
+Row 7: all-*
+Row 8: all-*
+```
+
+### Reference Examples
+
+Variant A — Narrow (S00554)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: AAAAAAAAAAA
+Row  2: ***********
+Row  3: ***********
+Row  4: A**AAA*****
+Row  5: AAAAAAAAAAA
+Row  6: A**********
+Row  7: ***********
+Row  8: ***********
+Row  9: ***********
+Row 10: ***********
+```
+Variant A — Extended band (S00564)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: AAAAAAAAAAA
+Row  2: ***********
+Row  3: ******AA***
+Row  4: AAAAAAA*A**
+Row  5: AAAAAAAAAAA
+Row  6: AAAAAAAAAAA
+Row  7: AAAAAAAAAAA
+Row  8: ********AAA
+Row  9: ***********
+Row 10: ***********
+```
+Variant B — Spread (S00594)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: AAAAAAAAAAA
+Row  2: AA*******AA
+Row  3: *******A***
+Row  4: AAAAAAA*A**
+Row  5: AA******AAA
+Row  6: A********AA
+Row  7: ***********
+Row  8: ***********
+Row  9: ***********
+Row 10: ***********
+```
+
+### Per-Row Generation Rules
+
+| Row | A count range | Probability of all-A | Probability of all-* | Notes |
+| --- | --- | --- | --- | --- |
+| 0 | 11 | 100% | 0% | Always all-A |
+| 1 | 11 | 100% | 0% | Always all-A |
+| 2 | 0-4 | 0% | 69% | When mixed: 1-4 A's scattered, prefer edges |
+| 3 | 0-8 | 0% | 24% | Avg ~3 A's; A's appear anywhere |
+| 4 | 1-11 | 8% | 0% | Avg ~6 A's; at least 1 A always present |
+| 5 | 2-11 | 63% | 0% | Core band row; avg ~9 A's |
+| 6 | 0-11 | 37% | 22% | Mirror of row 4; avg ~6 A's |
+| 7 | 0-11 | 10% | 57% | Mirror of row 3; avg ~2 A's |
+| 8 | 0-4 | 0% | 86% | Mirror of row 2; when mixed: 1-4 A's |
+| 9 | 0 | 0% | 100% | Always all-* |
+| 10 | 0 | 0% | 100% | Always all-* |
+
+### Key Constraints
+
+Rows 0-1: Always exactly AAAAAAAAAAA.
+Rows 9-10: Always exactly ***********.
+No col-0 ledge: Column 0 has no special treatment (unlike the Ledge class).
+Pass band: Row 5 is the band centre. At least one of rows 4-6 must have ≥6 A's.
+Monotonic decay: A-count should generally decrease outward from the band centre (row 5 → row 4 ≥ row 3 ≥ row 2; row 5 → row 6 ≥ row 7 ≥ row 8).
+Row-2 / Row-8 linkage: If row 2 has A's (Variant B), row 8 is usually all-*. If row 2 is all-* (Variant A), row 8 may have 0-4 A's (if band extends down).
+Extended band: When the band extends, rows 5-6 or 5-6-7 become all-A and a transition row (with 2-5 A's) appears at row 7 or 8.
+A placement: A's in transition rows tend to form small clusters (2-4 consecutive A's) rather than evenly spaced singletons.
+Generation Algorithm
+def generate_shmoo():
+    grid = [['*'] * 11 for _ in range(11)]
+
+    # 1. Fixed rows
+    grid[0] = ['A'] * 11
+    grid[1] = ['A'] * 11
+    grid[9] = ['*'] * 11
+    grid[10] = ['*'] * 11
+
+    # 2. Choose variant
+    variant = 'A' if random() < 0.60 else 'B'
+
+    if variant == 'A':
+        # Row 2: all-*
+        grid[2] = ['*'] * 11
+
+        # Row 3: all-* (46%) or sparse
+        if random() < 0.46:
+            grid[3] = ['*'] * 11
+        else:
+            a_count = randint(1, 8)
+            place_random_A_clusters(grid[3], a_count)
+
+        # Row 5: always all-A
+        grid[5] = ['A'] * 11
+
+        # Decide extended band
+        extend = choice([0, 1, 2], weights=[0.50, 0.30, 0.20])
+        if extend >= 1:
+            grid[6] = ['A'] * 11
+        if extend >= 2:
+            grid[7] = ['A'] * 11
+
+        # Row 4: upper transition (1-10 A's)
+        r4_a = randint(1, 10)
+        place_random_A_clusters(grid[4], r4_a)
+
+        # Row 6: lower transition (if not all-A)
+        if extend == 0:
+            r6_a = randint(1, 8)
+            place_random_A_clusters(grid[6], r6_a)
+
+        # Row 7: lower-lower transition (if not all-A)
+        if extend <= 1 and grid[7] != all-A:
+            if random() < 0.57:
+                grid[7] = ['*'] * 11
+            else:
+                r7_a = randint(1, 5)
+                place_random_A_clusters(grid[7], r7_a)
+
+        # Row 8: mostly all-*
+        if extend >= 1 and random() < 0.30:
+            r8_a = randint(1, 4)
+            place_random_A_clusters(grid[8], r8_a)
+        else:
+            grid[8] = ['*'] * 11
+
+    elif variant == 'B':
+        # Row 2: 1-4 A's (prefer edge cols)
+        r2_a = randint(1, 4)
+        place_random_A_clusters(grid[2], r2_a)
+
+        # Rows 3-6 form a wide transition zone
+        r3_a = randint(1, 8)
+        r4_a = randint(5, 8)
+        r5_a = randint(2, 11) if random() < 0.50 else 11
+        r6_a = randint(0, 5)
+        place_random_A_clusters(grid[3], r3_a)
+        place_random_A_clusters(grid[4], r4_a)
+        if r5_a == 11:
+            grid[5] = ['A'] * 11
+        else:
+            place_random_A_clusters(grid[5], r5_a)
+        place_random_A_clusters(grid[6], r6_a)
+
+        # Rows 7-8: all-*
+        grid[7] = ['*'] * 11
+        grid[8] = ['*'] * 11
+
+    return grid_to_string(grid)
+
+### Validation Checklist
+
+[ ] Row 0: exactly AAAAAAAAAAA
+[ ] Row 1: exactly AAAAAAAAAAA
+[ ] Row 9: exactly ***********
+[ ] Row 10: exactly ***********
+[ ] Row 5: at least 2 A's (typically all-A)
+[ ] At least one of rows 4-6 has ≥ 6 A's
+[ ] A-count decays outward from band centre (row 5)
+[ ] Row 2: 0-4 A's maximum
+[ ] Row 8: 0-4 A's maximum
+[ ] No column-0 ledge enforced
+[ ] All Shmoo Chars are exactly 131 characters (11×11 + 10 underscores)
+[ ] No duplicate Shmoo Chars within the file or against master training data
+
+---
+
+## crack_horiz-3band-bot-dominant-Ledge
+
+**Display name:** crack horiz-3band-bot-dominant-Ledge  
+**Family:** crack  
+**Class id:** `crack_horiz-3band-bot-dominant-Ledge`
+
+### Class Description
+
+crack_horiz-3band-bot-dominant-Ledge is a shmoo pattern featuring three horizontal pass bands on an 11×11 grid where the bottom band (row 10) dominates — it is always fully passing. The Left-edge (Ledge) variant means A's in all transition/crack rows grow from the left side.
+
+The grid uses two characters: - A = pass (silicon passes at that voltage/frequency point) - * = fail (silicon fails at that voltage/frequency point)
+
+Rows are separated by underscores (_). Row 0 is the top; Row 10 is the bottom. Columns 0–10 go left to right.
+
+### Visual Structure
+
+The pattern has three pass bands separated by crack/transition zones:
+
+```text
+Row  0:  Left-edge crack (0-3 leading A's, rest *)
+Row  1:  PASS BAND 1 top  (all or near-all A)
+Row  2:  PASS BAND 1 bot  (all or near-all A)
+Row  3:  Left-edge crack (0-3 leading A's, rest *) — mirrors Row 0
+Row  4:  PASS BAND 2 top  (all or near-all A)
+Row  5:  PASS BAND 2 bot  (all or near-all A)
+Row  6:  Lower transition (0-2 leading A's)
+Row  7:  Lower transition (0-3 leading A's, ≥ Row 6 typical)
+Row  8:  Lower transition (1-4 leading A's, ≥ Row 7 typical)
+Row  9:  Lower transition (1-11 leading A's, ≥ Row 8, can be heavy)
+Row 10:  PASS BAND 3 — DOMINANT (always all-A)
+```
+Key defining feature — Left Edge growth: A's in transition rows (0, 3, 6–9) are anchored to the left edge (columns 0, 1, 2, …), creating a left-side ledge that grows wider toward the dominant bottom band.
+
+Band Row Noise
+Band rows (1, 2, 4, 5) are predominantly all-A but ~10-12% have 1–2 scattered * fails at random interior positions (columns 1–10). These represent minor silicon noise within the pass bands.
+
+```text
+Row 1: ~9% noise (1 scattered *)
+Row 2: ~12% noise (1 scattered *)
+Row 4: ~12% noise (1–2 scattered *)
+Row 5: ~11% noise (1–2 scattered *)
+Row 10: always clean all-A (0% noise)
+```
+Structural Variants
+Type 1 — Flat/Minimal (~20%)
+Rows 6–9 have approximately equal, low A-counts (1–2 each).
+
+```text
+Row 6: A**********  or  AA*********
+Row 7: A**********  or  AA*********
+Row 8: A**********  or  AA*********
+Row 9: A**********  or  AA*********
+```
+Type 2 — Gradual Growth (~50%)
+A-count increases by ~1 per row from row 6 to row 9.
+
+```text
+Row 6: A**********       (1 A)
+Row 7: AA*********       (2 A's)
+Row 8: AAA********       (3 A's)
+Row 9: AAA********       (3 A's)
+```
+Type 3 — Heavy Bottom (~20%)
+Rows 0 and 3 are all-*; row 9 jumps to 3–11 A's.
+
+```text
+Row 0: ***********       (0 A's)
+Row 3: ***********       (0 A's)
+Row 6: ***********       (0 A's)
+Row 7: A**********       (1 A)
+Row 8: AA*********       (2 A's)
+Row 9: AAAAA******       (5 A's)
+```
+Type 4 — Slight Descent Start (~10%)
+Row 6 has slightly more A's than row 7 (descending start), then row 8–9 grow again.
+
+```text
+Row 6: AA*********       (2 A's)
+Row 7: A**********       (1 A)
+Row 8: A**********       (1 A)
+Row 9: A**********       (1 A)
+```
+
+### Reference Examples
+
+Type 1 — Flat (S00882)
+```text
+Row  0: A**********
+Row  1: AAAAAAAAAAA
+Row  2: AAAAAAAAAAA
+Row  3: A**********
+Row  4: AAAAAAAAAAA
+Row  5: AAAAAAAAAAA
+Row  6: AA*********
+Row  7: AA*********
+Row  8: AA*********
+Row  9: AA*********
+Row 10: AAAAAAAAAAA
+```
+Type 2 — Gradual (S00931)
+```text
+Row  0: AAA********
+Row  1: AAAAAAAAAAA
+Row  2: AAAAAAAAAAA
+Row  3: AAA********
+Row  4: AAAAAAAAAAA
+Row  5: AAAAAAAAAAA
+Row  6: A**********
+Row  7: AA*********
+Row  8: AAA********
+Row  9: AAAA*******
+Row 10: AAAAAAAAAAA
+```
+Type 3 — Heavy Bottom (S00898)
+```text
+Row  0: ***********
+Row  1: AAAAAAAAAAA
+Row  2: AAAAAAAAAAA
+Row  3: ***********
+Row  4: AAAAAAAAAAA
+Row  5: AAAAAAAAAAA
+Row  6: A**********
+Row  7: A**********
+Row  8: A**********
+Row  9: AAAAA******
+Row 10: AAAAAAAAAAA
+```
+Type 2 with Band Noise (S00888)
+```text
+Row  0: AAA********
+Row  1: AAAAAAAAAAA
+Row  2: AAAAAAAAAAA
+Row  3: AAA********
+Row  4: AAAAAAA*AAA   ← 1 scattered fail at col 7
+Row  5: AAAAAAAAAAA
+Row  6: AA*********
+Row  7: AA*********
+Row  8: AA*********
+Row  9: AAA********
+Row 10: AAAAAAAAAAA
+```
+Type 3 — Heavy with Non-contiguous Row 9 (S00897)
+```text
+Row  0: ***********
+Row  1: AAAAAAAAAAA
+Row  2: AAAAAAAAAAA
+Row  3: ***********
+Row  4: AAAAAAAAAAA
+Row  5: AAAAAAAAAAA
+Row  6: ***********
+Row  7: **********A   ← A on right! (noise)
+Row  8: AA********A
+Row  9: AAAA***AAAA   ← A's on both edges (heavy)
+Row 10: AAAAAAAAAAA
+```
+
+### Per-Row Generation Rules
+
+| Row | A count range | Prob all-A | Prob all-* | Notes |
+| --- | --- | --- | --- | --- |
+| 0 | 0–3 | 0% | ~16% | 0-3 left-edge A's; ~2% noisy (A*A) |
+| 1 | 9–11 | ~91% | 0% | Band row; ~9% have 1 scattered * |
+| 2 | 9–11 | ~88% | 0% | Band row; ~12% have 1 scattered * |
+| 3 | 0–3 | 0% | ~16% | Mirrors Row 0 ±1; ~4% noisy (A*A) |
+| 4 | 9–11 | ~88% | 0% | Band row; ~12% have 1–2 scattered * |
+| 5 | 9–11 | ~89% | 0% | Band row; ~11% have 1–2 scattered * |
+| 6 | 0–2 | 0% | ~18% | Lower transition start; left-edge A's |
+| 7 | 0–3 | 0% | ~11% | Lower transition; ≥ Row 6 (typical) |
+| 8 | 0–4 | 0% | ~4% | Lower transition; ≥ Row 7 (typical) |
+| 9 | 1–11 | ~4% | 0% | Near Band 3; heavy variants → 5-11 A's |
+| 10 | 11 | 100% | 0% | Always all-A (dominant band) |
+
+### Key Constraints
+
+Bands 1, 2, 3 core: Rows 1-2, 4-5 are predominantly all-A. Row 10 is always all-A.
+Left-edge growth: A's in transition rows (0, 3, 6–9) are anchored to the left edge. Consecutive A's start from column 0.
+Row 0 / Row 3 symmetry: A-counts within ±1 of each other; both are 0 in heavy-bottom variants.
+General growth in rows 6→9: A-count is typically non-decreasing from row 6 through row 9, with minor exceptions (±1 jitter, Type 4 descent).
+Row 9 dominance: Row 9 always has ≥1 A (nearest to dominant Band 3). In heavy-bottom variants, row 9 may have 5–11 A's.
+Contiguous left-edge placement: A's in transition rows are normally contiguous from column 0, except: - Noisy transition rows (~3%): A gap in the leading block (e.g., A*A********). - Displaced A (~3%): A at column 1 instead of 0 (e.g., *A*********). - Heavy row 9: A's may appear on both left and right edges (e.g., AAAA***AAAA).
+Band noise: 1–2 scattered * fails at random interior positions (columns 1–10) in ~10% of band rows. Row 10 is never noisy.
+Generation Algorithm
+def generate_crack_horiz_3band_bot_dominant_Ledge():
+    grid = [['*'] * 11 for _ in range(11)]
+
+    # 1. Fixed dominant band
+    grid[10] = ['A'] * 11
+
+    # 2. Band rows (mostly all-A, with possible noise)
+    for r in [1, 2, 4, 5]:
+        grid[r] = ['A'] * 11
+        if random() < 0.11:  # ~10% noise
+            n_fails = 1 if random() < 0.85 else 2
+            for _ in range(n_fails):
+                pos = randint(1, 10)  # never col 0 for bands
+                grid[r][pos] = '*'
+
+    # 3. Choose structural type
+    t = choice(['flat', 'gradual', 'heavy', 'descent'],
+               weights=[0.20, 0.50, 0.20, 0.10])
+
+    # 4. Rows 0 and 3 (crack rows)
+    if t == 'heavy':
+        r0_a = 0
+        r3_a = 0
+    else:
+        r0_a = choices([0, 1, 2, 3], weights=[0.05, 0.20, 0.35, 0.40])[0]
+        r3_a = clamp(r0_a + randint(-1, 1), 0, 3)
+
+    place_left_edge(grid[0], r0_a, noisy_prob=0.03)
+    place_left_edge(grid[3], r3_a, noisy_prob=0.04)
+
+    # 5. Rows 6-9 (lower transition)
+    if t == 'flat':
+        base = randint(1, 2)
+        r6, r7, r8, r9 = base, base, base, base
+    elif t == 'gradual':
+        r6 = randint(0, 2)
+        r7 = randint(r6, min(r6 + 1, 3))
+        r8 = randint(r7, min(r7 + 1, 4))
+        r9 = randint(r8, min(r8 + 1, 4))
+    elif t == 'heavy':
+        r6 = randint(0, 1)
+        r7 = randint(r6, max(r6, 1))
+        r8 = randint(r7, max(r7 + 1, 4))
+        r9 = randint(max(r8 + 1, 3), 11)  # big jump
+    else:  # descent
+        r6 = 2
+        r7 = randint(1, 2)
+        r8 = randint(1, r7)
+        r9 = randint(r8, max(r8, 2))
+
+    for row_idx, a_count in [(6, r6), (7, r7), (8, r8), (9, r9)]:
+        place_left_edge(grid[row_idx], a_count, noisy_prob=0.03)
+
+    return grid
+
+def place_left_edge(row, a_count, noisy_prob=0.0):
+    """Place a_count A's on the left edge of the row."""
+    if a_count == 0:
+        return
+    if a_count >= 11:
+        row[:] = ['A'] * 11
+        return
+    for i in range(a_count):
+        row[i] = 'A'
+    # Optional noise: displace one A
+    if random() < noisy_prob:
+        variant = choice(['gap', 'displaced'])
+        if variant == 'gap' and a_count >= 2:
+            # Create gap: A*A...
+            idx = randint(1, a_count - 1)
+            row[idx] = '*'
+        elif variant == 'displaced':
+            # Shift A from col 0 to col 1: *A...
+            row[0] = '*'
+    # For heavy row 9 (a_count >= 5), optionally add right-edge A's
+    if a_count >= 5 and random() < 0.30:
+        right_a = randint(1, min(3, 11 - a_count))
+        for i in range(11 - right_a, 11):
+            row[i] = 'A'
+
+---
+
+## crack_horiz-3band-clean
+
+**Display name:** crack horiz-3band-clean  
+**Family:** crack  
+**Class id:** `crack_horiz-3band-clean`
+
+### Class Description
+
+crack_horiz-3band-clean is a shmoo pattern featuring three horizontal pass bands on an 11×11 grid with clean fail zones (mostly all-* between bands). A diagonal "sweep" pattern governs the transition rows adjacent to the middle and bottom bands.
+
+The grid uses two characters: - A = pass (silicon passes at that voltage/frequency point) - * = fail (silicon fails at that voltage/frequency point)
+
+Rows are separated by underscores (_). Row 0 is the top; Row 10 is the bottom.
+
+### Visual Structure
+
+```text
+Row  0: ***********          ← always all-* (top fail)
+Row  1: AAAAAAAAAAA          ← BAND 1 — nearly all-A (10-11 A's)
+Row  2: ***********          ← fail zone (rarely 1 scattered A)
+Row  3: ***********          ← always all-* (fail zone)
+Row  4: (transition)         ← diagonal sweep A's (0-11 A's)
+Row  5: (band+complement)   ← BAND 2 — near all-A with complement to row 4
+Row  6: ***********          ← always all-* (fail zone)
+Row  7: ***********          ← always all-* (fail zone)
+Row  8: (band+complement)   ← BAND 3 — near all-A with complement to row 9
+Row  9: (transition)         ← diagonal sweep A's (mirrors row 4 progression)
+Row 10: ***********          ← always all-* (bottom fail)
+```
+The Diagonal Sweep Pattern
+The defining feature of this class is a diagonal sweep visible in the transition rows (4 and 9) and their adjacent band rows (5 and 8).
+
+When ordered by sample, the A-positions in rows 4/9 progress from the right edge toward the left edge (like a cursor sweeping left):
+
+Early samples (S01001–S01005): A's concentrated at columns 9-10 (right)
+Middle samples (S01020–S01035): A's spread around columns 3-6 (center)
+Late samples (S01045–S01050): A's concentrated at columns 0-2 (left)
+Row 4 / Row 5 Complementarity
+Rows 4 and 5 are complementary — where row 4 has A's, row 5 tends to have *'s, and vice versa. Together they roughly cover all 11 columns with A's. Row 5 is the "main" band row (mostly A), and row 4 shows the leading edge of the next pass region.
+
+Row 8 / Row 9 Complementarity
+Same complementary relationship: rows 8 and 9 together cover most columns. Row 8 is the main band (mostly A), row 9 is the transition with the sweep.
+
+Row 4 vs Row 9 Mirror
+Row 9's A positions are often close to row 4's but shifted or slightly different — they don't have to match exactly but follow the same general diagonal position in the sweep.
+
+Band Row Noise
+Band rows (1, 5, 8) are predominantly all-A but ~12-18% have 1 scattered * fail at a random interior position.
+
+```text
+Row 1: ~14% have 1 scattered *
+Row 5: ~12% have 1-3 scattered * (more variable since it's complement of row 4)
+Row 8: ~10% have 1-3 scattered * (complement of row 9)
+```
+Fail Zone Noise
+```text
+Row 0: always *********** (100% all-*)
+Row 2: ~94% all-*; ~6% have 1 isolated A
+Row 3: always *********** (100% all-*)
+Row 6: always *********** (100% all-*)
+Row 7: always *********** (100% all-*)
+Row 10: always *********** (100% all-*)
+```
+Transition Row A-Count Distribution
+| Row | Min A's | Max A's | Avg A's | Notes |
+| --- | --- | --- | --- | --- |
+| 4 | 1 | 11 | ~5.5 | Sweep position; contiguous clusters or scattered |
+| 9 | 1 | 11 | ~5.5 | Mirrors row 4 sweep position |
+
+### Reference Examples
+
+Right-edge sweep (S01001)
+```text
+Row  0: ***********
+Row  1: AAAAAAAAAAA
+Row  2: ***********
+Row  3: ***********
+Row  4: **********A    ← A at far right
+Row  5: AAAAAAAAAA*    ← complement: all-A except far right
+Row  6: ***********
+Row  7: ***********
+Row  8: AAAAAAAAA**    ← mostly A
+Row  9: ********AAA    ← A's at right
+Row 10: ***********
+```
+Mid-sweep (S01024)
+```text
+Row  0: ***********
+Row  1: AAAAAAAAAAA
+Row  2: ***********
+Row  3: ***********
+Row  4: A**********    ← A at far left
+Row  5: *AAAAAAAAAA    ← complement
+Row  6: ***********
+Row  7: ***********
+Row  8: *A*AAAAAAAA    ← complement
+Row  9: A**AAA*****    ← A's in left-center
+Row 10: ***********
+```
+Left-edge sweep (S01050)
+```text
+Row  0: ***********
+Row  1: AAAAAAAAA*A
+Row  2: ***********
+Row  3: ***********
+Row  4: AAAAAAAAAA*    ← A's across most of row (left-dominant)
+Row  5: **********A    ← complement: single A at right
+Row  6: ***********
+Row  7: ***********
+Row  8: AAAAAAAAAAA    ← all-A
+Row  9: **********A    ← single A at right
+Row 10: ***********
+```
+Wide scatter (S01020)
+```text
+Row  0: ***********
+Row  1: AAAAAAAAAAA
+Row  2: ***********
+Row  3: ***********
+Row  4: *A***AAA**A    ← scattered A's center-left
+Row  5: AAAAA***AA*    ← complement
+Row  6: ***********
+Row  7: ***********
+Row  8: *AAA*AAAAAA    ← complement of row 9
+Row  9: *AA**A***AA    ← scattered A's
+Row 10: ***********
+```
+
+### Key Constraints
+
+Rows 0, 3, 6, 7, 10: Always *********** (pure fail zones).
+```text
+Row 2: Almost always all-*; rarely has 1 isolated A.
+```
+Row 1 (Band 1): 10-11 A's. When not all-A, has exactly 1 scattered *.
+Rows 4+5 complementary: Where row 4 has A, row 5 tends toward *, and vice versa. Combined, they approximately cover all 11 columns.
+Rows 8+9 complementary: Same relationship. Row 8 is the main band, row 9 is the transient.
+Diagonal sweep: The A-positions in rows 4 and 9 sweep from right-to-left (or equivalently, the "leading edge" moves across columns as you go through samples).
+A clustering: A's in transition rows form small clusters (1-5 consecutive A's) with occasional scattered singles.
+Row 4 A-count + Row 5 *-count ≈ similar magnitude; they partition the columns.
+Generation Algorithm
+def generate_crack_horiz_3band_clean():
+    grid = [['*'] * 11 for _ in range(11)]
+
+    # 1. Fixed fail rows
+    # Rows 0, 3, 6, 7, 10 are always all-*
+    # (already initialized)
+
+    # 2. Row 2: mostly all-*, ~6% chance of 1 scattered A
+    if random() < 0.06:
+        grid[2][randint(0, 10)] = 'A'
+
+    # 3. Row 1 (Band 1): near all-A
+    grid[1] = ['A'] * 11
+    if random() < 0.14:
+        grid[1][randint(0, 10)] = '*'
+
+    # 4. Choose sweep position (0.0 = far right, 1.0 = far left)
+    sweep = random()  # uniform [0, 1]
+
+    # 5. Generate row 4 (transition) based on sweep
+    center_col = int(10 * (1.0 - sweep))  # 10..0 as sweep goes 0..1
+    r4_a_count = randint(1, 11)
+    r4 = generate_sweep_row(center_col, r4_a_count)
+    grid[4] = r4
+
+    # 6. Row 5 (Band 2): complement of row 4
+    grid[5] = ['A' if r4[i] == '*' else '*' for i in range(11)]
+    # Add noise: flip 0-2 cells
+    noise = randint(0, 2)
+    for _ in range(noise):
+        idx = randint(0, 10)
+        grid[5][idx] = 'A' if grid[5][idx] == '*' else '*'
+
+    # 7. Generate row 9 (transition) — similar sweep position
+    r9_a_count = randint(1, 11)
+    r9 = generate_sweep_row(center_col + randint(-2, 2), r9_a_count)
+    grid[9] = r9
+
+    # 8. Row 8 (Band 3): complement of row 9
+    grid[8] = ['A' if r9[i] == '*' else '*' for i in range(11)]
+    noise = randint(0, 2)
+    for _ in range(noise):
+        idx = randint(0, 10)
+        grid[8][idx] = 'A' if grid[8][idx] == '*' else '*'
+
+    return grid
+
+def generate_sweep_row(center, a_count):
+    """Place a_count A's centered roughly around 'center' column."""
+    row = ['*'] * 11
+    center = clamp(center, 0, 10)
+    positions = sorted(range(11), key=lambda c: abs(c - center) + random() * 3)
+    for i in range(min(a_count, 11)):
+        row[positions[i]] = 'A'
+    return row
+
+---
+
+## crack_horiz-3band-noisy
+
+**Display name:** crack horiz-3band-noisy  
+**Family:** crack  
+**Class id:** `crack_horiz-3band-noisy`
+
+### Class Description
+
+crack_horiz-3band-noisy is a shmoo pattern featuring three horizontal pass bands on an 11×11 grid with noisy transition rows between the bands. Unlike the "clean" sibling where transition rows have contiguous A-blocks and complement relationships, this class has scattered, random A placements in transition rows.
+
+The grid uses two characters: - A = pass - * = fail
+
+Rows are separated by underscores (_). Row 0 is top; Row 10 is bottom.
+
+### Visual Structure
+
+```text
+Row  0: AAAAAAAAAAA          ← BAND 1 — always all-A
+Row  1: (noisy transition)   ← 1-7 scattered A's (diagonal sweep)
+Row  2: ***********          ← always all-* (clean fail zone)
+Row  3: ***********          ← always all-* (clean fail zone)
+Row  4: (noisy transition)   ← 3-8 scattered A's
+Row  5: AAAAAAAAAAA          ← BAND 2 — nearly always all-A
+Row  6: (noisy transition)   ← 1-8 scattered A's
+Row  7: ***********          ← always all-* (clean fail zone)
+Row  8: ***********          ← always all-* (clean fail zone)
+Row  9: (noisy transition)   ← 1-7 scattered A's (diagonal sweep)
+Row 10: AAAAAAAAAAA          ← BAND 3 — always all-A
+```
+Key Differences from crack_horiz-3band-clean
+| Feature | Clean | Noisy |
+| --- | --- | --- |
+| Band rows (0, 5, 10) | Same (all-A) | Same (all-A) |
+| Fail zones (2, 3, 7, 8) | Same (all-*) | Same (all-*) |
+| Transition rows | Contiguous A-clusters | Scattered random A's |
+| Row 4/5 complementarity | Strong | Weak/none |
+| Row 8/9 complementarity | Strong | Weak/none |
+| A placement in transitions | Edge-biased clusters | Randomly distributed |
+
+Transition Row Characteristics
+Row 1 — Below Band 1 (diagonal sweep)
+A's are scattered (1-7 count) with positions following a diagonal sweep pattern across samples — from right edge (early samples) to left edge (late samples). The A's are NOT contiguous; they're spread randomly but biased toward the sweep region.
+
+Row 4 — Above Band 2
+Scattered A's (3-8 count). Higher A-count than other transition rows. A positions are random with no strong contiguous pattern.
+
+Row 6 — Below Band 2
+Scattered A's (1-8 count). Independent of row 4 — they don't form a complement pair. A positions are random.
+
+Row 9 — Above Band 3 (diagonal sweep)
+Scattered A's (1-7 count). Shows a diagonal sweep similar to row 1. A positions are random but biased toward the same sweep region as row 1.
+
+Row 5 (Band 2) Noise
+Row 5 is nearly always all-A but ~10% of samples have 1-2 scattered * at random interior positions (e.g., AA**AAAAAAA, AAAAAAAAA*A).
+
+### Per-Row Generation Rules
+
+| Row | A count range | Prob all-A | Prob all-* | Notes |
+| --- | --- | --- | --- | --- |
+| 0 | 11 | 100% | 0% | Always all-A (Band 1) |
+| 1 | 1-7 | 0% | 0% | Scattered A's, diagonal sweep |
+| 2 | 0 | 0% | 100% | Always all-* |
+| 3 | 0 | 0% | 100% | Always all-* |
+| 4 | 3-8 | 0% | 0% | Scattered A's, higher count |
+| 5 | 9-11 | ~90% | 0% | Band 2; ~10% have 1-2 scattered * |
+| 6 | 1-8 | 0% | 0% | Scattered A's |
+| 7 | 0 | 0% | 100% | Always all-* |
+| 8 | 0 | 0% | 100% | Always all-* |
+| 9 | 1-7 | 0% | 0% | Scattered A's, diagonal sweep |
+| 10 | 11 | 100% | 0% | Always all-A (Band 3) |
+
+### Reference Examples
+
+Right-edge sweep (S01051)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: **********A    ← 1 A at far right
+Row  2: ***********
+Row  3: ***********
+Row  4: AAA**A*A***    ← 5 A's scattered
+Row  5: AAAAAAAAAAA
+Row  6: AAA*AAAA***    ← 6 A's scattered
+Row  7: ***********
+Row  8: ***********
+Row  9: A***AAA****    ← 4 A's scattered
+Row 10: AAAAAAAAAAA
+```
+Mid sweep (S01067)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: ***AAA*A***    ← 4 A's in center
+Row  2: ***********
+Row  3: ***********
+Row  4: ******AAA**    ← 3 A's scattered right-center
+Row  5: AAAAAAAAAAA
+Row  6: AA*********    ← 2 A's at left
+Row  7: ***********
+Row  8: ***********
+Row  9: AA*A*******    ← 3 A's at left
+Row 10: AAAAAAAAAAA
+```
+Left-edge sweep (S01099)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: AAA***AAAAA    ← 8 A's, leftward
+Row  2: ***********
+Row  3: ***********
+Row  4: *********AA    ← 2 A's at right
+Row  5: AAAAAAAAAAA
+Row  6: *********AA    ← 2 A's at right
+Row  7: ***********
+Row  8: ***********
+Row  9: A**********    ← 1 A at far left
+Row 10: AAAAAAAAAAA
+```
+Band 2 with noise (S01057)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: ******AAAAA
+Row  2: ***********
+Row  3: ***********
+Row  4: AAAAA**AA*A    ← 7 scattered A's
+Row  5: AA**AAAAAAA    ← Band 2 with 2 scattered *
+Row  6: AA*AA**AA*A    ← 7 scattered A's
+Row  7: ***********
+Row  8: ***********
+Row  9: A*AA**A**AA    ← 6 scattered A's
+Row 10: AAAAAAAAAAA
+```
+
+### Key Constraints
+
+Rows 0, 10 (Bands 1 & 3): Always AAAAAAAAAAA.
+Row 5 (Band 2): 9-11 A's. When not all-A, 1-2 random *.
+Rows 2, 3, 7, 8: Always *********** (pure fail zones).
+Transition rows (1, 4, 6, 9): Scattered random A's (not contiguous blocks).
+Diagonal sweep in rows 1 & 9: A-positions shift from right to left across samples.
+Row 4 A-count: Typically highest of transition rows (3-8).
+No complement relationship: Unlike clean, row 4 and row 5 are independent; row 6 and row 9 are independent.
+Scatter randomness: A's in transition rows should be randomly placed, not forming contiguous blocks of >3 consecutive A's.
+Generation Algorithm
+def generate_crack_horiz_3band_noisy():
+    grid = [['*'] * 11 for _ in range(11)]
+
+    # 1. Fixed bands
+    grid[0] = ['A'] * 11   # Band 1
+    grid[10] = ['A'] * 11  # Band 3
+
+    # 2. Band 2 (Row 5): near all-A
+    grid[5] = ['A'] * 11
+    if random() < 0.10:
+        n_fails = 1 if random() < 0.70 else 2
+        for _ in range(n_fails):
+            grid[5][randint(0, 10)] = '*'
+
+    # 3. Fail zones already all-*
+    # Rows 2, 3, 7, 8
+
+    # 4. Choose sweep position for rows 1 & 9
+    sweep = random()  # 0=right, 1=left
+
+    # 5. Row 1 (below Band 1): scattered A's with sweep bias
+    r1_a = randint(1, 7)
+    grid[1] = scatter_A_with_bias(r1_a, sweep_col=int(10*(1-sweep)))
+
+    # 6. Row 4 (above Band 2): scattered A's (higher count)
+    r4_a = randint(3, 8)
+    grid[4] = scatter_A_random(r4_a)
+
+    # 7. Row 6 (below Band 2): scattered A's
+    r6_a = randint(1, 8)
+    grid[6] = scatter_A_random(r6_a)
+
+    # 8. Row 9 (above Band 3): scattered A's with sweep bias
+    r9_a = randint(1, 7)
+    grid[9] = scatter_A_with_bias(r9_a, sweep_col=int(10*(1-sweep))+randint(-2,2))
+
+    return grid
+
+def scatter_A_random(a_count):
+    """Place a_count A's at random positions."""
+    row = ['*'] * 11
+    positions = sample(range(11), min(a_count, 11))
+    for p in positions:
+        row[p] = 'A'
+    return row
+
+def scatter_A_with_bias(a_count, sweep_col):
+    """Place A's with probability biased toward sweep_col."""
+    row = ['*'] * 11
+    weights = [1.0 / (1 + abs(c - sweep_col)) for c in range(11)]
+    positions = weighted_sample(range(11), weights, min(a_count, 11))
+    for p in positions:
+        row[p] = 'A'
+    return row
+
+---
+
+## crack_horiz-3band-noisy-thick
+
+**Display name:** crack horiz-3band-noisy-thick  
+**Family:** crack  
+**Class id:** `crack_horiz-3band-noisy-thick`
+
+### Class Description
+
+crack_horiz-3band-noisy-thick is a shmoo pattern featuring three horizontal pass bands on an 11×11 grid with noisy transition rows and a thick bottom band (2 rows wide). Unlike the regular crack_horiz-3band-noisy where each band is 1 row and fail zones are 2 rows, this class has single-row fail zones and a 2-row-thick bottom band.
+
+The grid uses two characters: - A = pass - * = fail
+
+Rows are separated by underscores (_). Row 0 is top; Row 10 is bottom.
+
+### Visual Structure
+
+```text
+Row  0: AAAAAAAAAAA          ← BAND 1 — always all-A
+Row  1: ***********          ← Fail zone (mostly all-*, rare 1-3 scattered A's)
+Row  2: (noisy transition)   ← 1-8 scattered A's, LEFT→RIGHT sweep
+Row  3: AAAAAAAAAAA          ← BAND 2 — always all-A
+Row  4: (noisy transition)   ← 5-11 scattered A's, high count, increasing sweep
+Row  5: ***********          ← Fail zone — always all-*
+Row  6: (noisy transition)   ← 2-6 scattered A's, no sweep (random)
+Row  7: AAAAAAAAAAA          ← BAND 3 (row 1) — always all-A  ┐ THICK
+Row  8: AAAAAAAAAAA          ← BAND 3 (row 2) — always all-A  ┘ BAND
+Row  9: (noisy transition)   ← 4-9 scattered A's, stable
+Row 10: ***********          ← Fail zone — always all-*
+```
+Key Differences from crack_horiz-3band-noisy
+| Feature | Regular noisy | Thick noisy |
+| --- | --- | --- |
+| Band positions | Rows 0, 5, 10 | Rows 0, 3, 7-8 |
+| Band widths | All 1-row | Bottom band = 2 rows |
+| Fail zones | 2-row pairs (rows 2-3, 7-8) | Single rows (1, 5, 10) |
+| Transition rows | 1, 4, 6, 9 | 2, 4, 6, 9 |
+| Row 1 | Noisy transition | Near-pure fail zone |
+
+Transition Row Characteristics
+Row 1 — Below Band 1 (near-pure fail)
+Almost always *********** (all-*). ~6% of samples have 1-3 scattered A's at random positions. This row functions as a fail zone with rare noise.
+
+Row 2 — Above Band 2 (LEFT→RIGHT sweep)
+Scattered A's (1-8 count, avg 3.9). Shows a diagonal sweep: early VIDs have A's concentrated on the left side (cols 0-3); later VIDs have A's shifting to the right side (cols 8-10). The A's are scattered, not forming contiguous blocks of >3.
+
+Row 4 — Below Band 2 (high A-count, increasing)
+Scattered A's (5-11 count, avg 7.8). Shows an increasing trend: early VIDs have 5-8 A's with * at col 0; later VIDs approach near-all-A (9-11). Early samples typically start with *A*... pattern; later samples start with AAAA....
+
+Row 6 — Above Band 3 (random, stable)
+Scattered A's (2-6 count, avg 3.9). No sweep pattern — A positions are randomly distributed across all samples. Common patterns include AA*A*A..., A******AA**, ***A*A*AA**.
+
+Row 9 — Below Band 3 (random, stable)
+Scattered A's (4-9 count, avg 5.7). Relatively stable, typically ~5 A's. Common patterns involve 2-3 clusters of A's separated by * runs. No strong sweep trend.
+
+### Per-Row Generation Rules
+
+| Row | A count range | Prob all-A | Prob all-* | Notes |
+| --- | --- | --- | --- | --- |
+| 0 | 11 | 100% | 0% | Always all-A (Band 1) |
+| 1 | 0-3 | 0% | ~94% | Near-pure fail; rare 1-3 scattered A's |
+| 2 | 1-8 | 0% | 0% | Scattered A's, LEFT→RIGHT sweep, avg 3.9 |
+| 3 | 11 | 100% | 0% | Always all-A (Band 2) |
+| 4 | 5-11 | ~4% | 0% | Scattered A's, high count, avg 7.8 |
+| 5 | 0 | 0% | 100% | Always all-* (fail zone) |
+| 6 | 2-6 | 0% | 0% | Scattered A's, random, avg 3.9 |
+| 7 | 11 | 100% | 0% | Always all-A (Band 3, row 1) |
+| 8 | 11 | 100% | 0% | Always all-A (Band 3, row 2) |
+| 9 | 4-9 | 0% | 0% | Scattered A's, stable, avg 5.7 |
+| 10 | 0 | 0% | 100% | Always all-* (fail zone) |
+
+### Reference Examples
+
+Early VID — Row 2 A's on left (S00901)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: ***********    ← all-*
+Row  2: AAA***AA***    ← 5 A's, left-weighted
+Row  3: AAAAAAAAAAA
+Row  4: *A*A*AA*AAA    ← 6 A's, starts with *A*...
+Row  5: ***********
+Row  6: AA*A*A*****    ← 4 A's
+Row  7: AAAAAAAAAAA
+Row  8: AAAAAAAAAAA
+Row  9: AA***A**AAA    ← 5 A's
+Row 10: ***********
+```
+Late VID — Row 2 A's on right, Row 4 near all-A (S00940)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: ***********    ← all-*
+Row  2: *****A*****    ← 1 A, right-center
+Row  3: AAAAAAAAAAA
+Row  4: AAAAAAAAAAA    ← all-A
+Row  5: ***********
+Row  6: AA*****AA**    ← 4 A's
+Row  7: AAAAAAAAAAA
+Row  8: AAAAAAAAAAA
+Row  9: ****AA**AAA    ← 5 A's
+Row 10: ***********
+```
+Row 1 with noise (S00950)
+```text
+Row  0: AAAAAAAAAAA
+Row  1: *A*****AA**    ← 3 A's (rare noise)
+Row  2: **********A    ← 1 A, far right
+Row  3: AAAAAAAAAAA
+Row  4: AAAAAAAAAA*    ← 10 A's
+Row  5: ***********
+Row  6: *******AA**    ← 2 A's
+Row  7: AAAAAAAAAAA
+Row  8: AAAAAAAAAAA
+Row  9: AAAAAAAAA**    ← 9 A's
+Row 10: ***********
+```
+
+### Key Constraints
+
+Rows 0, 3 (Bands 1 & 2): Always AAAAAAAAAAA.
+Rows 7, 8 (Band 3 — thick): Always AAAAAAAAAAA — both rows.
+Rows 5, 10 (fail zones): Always ***********.
+Row 1 (fail zone): *********** ~94% of the time; rare 1-3 scattered A's.
+Row 2 sweep: A-positions shift LEFT→RIGHT as VID increases.
+Row 4 increasing: A-count grows with VID; early ~6, late ~10.
+Rows 6, 9: Random scattered A's, no sweep.
+Scatter randomness: A's in transition rows should be randomly placed, not forming contiguous blocks of >3 consecutive A's (except Row 4 at high A-counts where runs are unavoidable).
+Generation Algorithm
+def generate_crack_horiz_3band_noisy_thick(sweep_pos):
+    """
+    sweep_pos: float 0.0→1.0 controlling diagonal sweep
+               0.0 = A's on left in Row 2, lower A-count in Row 4
+               1.0 = A's on right in Row 2, higher A-count in Row 4
+    """
+    grid = [['*'] * 11 for _ in range(11)]
+
+    # 1. Fixed bands
+    grid[0] = ['A'] * 11   # Band 1
+    grid[3] = ['A'] * 11   # Band 2
+    grid[7] = ['A'] * 11   # Band 3, row 1
+    grid[8] = ['A'] * 11   # Band 3, row 2
+
+    # 2. Fixed fail zones (rows 5 and 10 already all-*)
+
+    # 3. Row 1: near-pure fail zone
+    if random() < 0.06:
+        n_a = randint(1, 3)
+        positions = sample(range(11), n_a)
+        for p in positions:
+            grid[1][p] = 'A'
+
+    # 4. Row 2: LEFT→RIGHT sweep
+    r2_a = randint(1, 8)
+    sweep_col = int(10 * sweep_pos)  # center of A-region
+    grid[2] = scatter_A_with_bias(r2_a, bias_col=sweep_col)
+
+    # 5. Row 4: high A-count, increasing with sweep
+    base_a = int(5 + 6 * sweep_pos)  # 5→11
+    r4_a = clamp(base_a + randint(-1, 1), 5, 11)
+    grid[4] = scatter_A_random(r4_a)
+
+    # 6. Row 6: random (no sweep)
+    r6_a = randint(2, 6)
+    grid[6] = scatter_A_random(r6_a)
+
+    # 7. Row 9: random, stable
+    r9_a = randint(4, 9)
+    grid[9] = scatter_A_random(r9_a)
+
+    return grid
+
+---
+
+## crack_horiz-stepped-lower
+
+**Display name:** crack horiz-stepped-lower  
+**Family:** crack  
+**Class id:** `crack_horiz-stepped-lower`
+
+### Class Description
+
+crack_horiz-stepped-lower is a shmoo pattern on an 11×11 grid where a horizontal fail band dominates the upper rows (0–4), then "steps down" through a narrow transition zone (rows 5–6) into a mostly-passing lower region (rows 7–9), with a fail band returning at row 10. The name "stepped-lower" indicates the clean/pass region sits in the lower half of the grid while the crack occupies the upper half.
+
+The grid uses two characters: - A = pass (silicon passes at that voltage/frequency point) - * = fail (silicon fails at that voltage/frequency point)
+
+Rows are separated by underscores (_). Row 0 is the top; Row 10 is the bottom.
+
+This class is the vertical mirror of crack_horiz-stepped-upper.
+
+### Visual Structure
+
+```text
+Row  0: AA****...AA     ← upper crack (fail band, framed by A-borders)
+Row  1: AA*****..AA     ← upper crack (same or ±1 col of row 0)
+Row  2: AA*****..AA     ← upper crack (usually identical to row 1)
+Row  3: A******..AA     ← upper crack (slightly wider; left border shrinks 0-1)
+Row  4: A******..AA     ← upper crack (usually identical to row 3)
+Row  5: AAA*..AAAAAA    ← step/transition (mostly pass, 0-5 scattered fails)
+Row  6: AAAA...AAAAA    ← step/transition (mostly pass, 0-3 scattered fails)
+Row  7: AAAAAAAAAAA     ← lower pass zone (all-A or 0-1 scattered fail)
+Row  8: AAAAAAAAAAA     ← lower pass zone (all-A or 0-1 scattered fail)
+Row  9: A*....*****A    ← variable (all-A to wide fail; noisiest row)
+Row 10: A*********A     ← bottom fail band (often wider than rows 0-4)
+```
+Row-by-Row Analysis
+Rows 0–2: Upper Crack (Top Section)
+These rows form the top of the horizontal fail band. They share a consistent fail region framed by left and right A-borders.
+
+Row 0 may be slightly narrower (1 more A on left or right) than rows 1–2.
+Rows 1 and 2 are usually identical or differ by at most 1 column.
+Left A-border: 1–5 columns (typically 2–3)
+Right A-border: 1–5 columns (typically 1–3)
+Fail width: 2–9 columns (center region is all *)
+Rows 3–4: Upper Crack (Bottom Section)
+These rows form the bottom of the upper fail band and are typically slightly wider than rows 0–2 (the left border shrinks by 0–1 column).
+
+Rows 3 and 4 are usually identical.
+Left A-border: max(1, row0_left − randint(0,1))
+Right A-border: max(1, row0_right − randint(0,1))
+Overall fail width is same or 1–2 columns wider than rows 0–2.
+Rows 5–6: Step Transition
+The defining feature — the fail band narrows dramatically or vanishes. This creates the visible "step" shape.
+
+```text
+Row 5: Mostly all-A with 0–5 scattered * fails in the interior. Fails tend to cluster near the column range of the upper crack.
+Row 6: Mostly all-A with 0–3 scattered * fails. Often cleaner than row 5.
+```
+Together, rows 5–6 bridge between the heavy fail zone above and the clean pass zone below.
+Rows 7–8: Lower Pass Zone
+These rows are predominantly all-pass.
+
+~75% of samples: both rows are AAAAAAAAAAA (all-A)
+~25% of samples: 1–2 scattered * fails at random interior positions
+Rows 7 and 8 are usually identical.
+```text
+Row 9: Variable Row
+```
+The noisiest row in the lower section. Can range from all-pass to having a moderate fail band.
+
+~40% all-A
+~35% with 1–4 scattered fails
+~25% with wider fail (5–10 fails), approaching row 10's pattern
+```text
+Row 10: Bottom Fail Band
+```
+Always contains a fail band. Often the widest fail region in the grid.
+
+Left A-border: 0–3 columns (can be 0 = starts with *)
+Right A-border: 0–3 columns
+Fail width: 5–11 columns
+~10% of samples: all-* (***********)
+Often ≥ the fail width of rows 0–4.
+Three Width Variants
+The 50 existing samples fall into three sub-groups based on fail-band width:
+
+Wide Variant (~25% of samples)
+Rows 0–4 fail width: 7–9 columns
+A-borders: 1–2 columns each side
+```text
+Row 10: Very wide, often all-* or 1 A each side
+```
+Example: AA********A / A*********A / ***********
+Medium Variant (~50% of samples)
+Rows 0–4 fail width: 4–7 columns
+A-borders: 2–4 columns each side
+```text
+Row 10: Similar width to upper band
+```
+Example: AAA*****AAA / AA******AAA / A*******AAA
+Narrow Variant (~25% of samples)
+Rows 0–4 fail width: 2–4 columns
+A-borders: 3–5 columns each side
+```text
+Row 10: Narrow to medium fail band
+```
+Example: AAAA***AAAA / AAAAA**AAAA / AAAA***AAAA
+
+### Reference Examples
+
+Wide variant (S01601)
+```text
+Row  0: AA********A     ← wide fail, left=2, right=1
+Row  1: AA********A
+Row  2: AA********A
+Row  3: A*********A     ← wider (left shrinks to 1)
+Row  4: A*********A
+Row  5: AAA*AAAAAAA     ← step: 1 fail at col 3
+Row  6: AAA*AAAAAAA
+Row  7: AAAAAA*AAAA     ← pass zone: 1 scattered fail
+Row  8: AAAAAA*AAAA
+Row  9: A**********     ← heavy fail
+Row 10: ***********     ← all fail
+```
+Medium variant (S01644)
+```text
+Row  0: AAA****AAAA     ← medium fail, left=3, right=4
+Row  1: AAA*****AAA
+Row  2: AAA*****AAA
+Row  3: AAA*****AAA
+Row  4: AAA*****AAA
+Row  5: AAAAAAAAAAA     ← step: all pass
+Row  6: AAAAAAAAAAA
+Row  7: AAAAAAAAAAA     ← pass zone: all pass
+Row  8: AAAAAAAAAAA
+Row  9: AAAAAAAAAAA     ← all pass
+Row 10: AAA****AAAA     ← bottom fail
+```
+Narrow variant (S01647)
+```text
+Row  0: AAAAA**AAAA     ← narrow fail, left=5, right=4
+Row  1: AAAAA**AAAA
+Row  2: AAAA***AAAA
+Row  3: AAAA***AAAA
+Row  4: AAAA***AAAA
+Row  5: AAAA***AAAA     ← step: same narrow band extends
+Row  6: AAAA***AAAA
+Row  7: AAAAAAAAAAA     ← pass zone: all pass
+Row  8: AAAAAAAAAAA
+Row  9: AAAAAAAAAAA     ← all pass
+Row 10: AAAA***AAAA     ← bottom fail
+```
+Noisy wide variant (S01603)
+```text
+Row  0: AA*******AA     ← wide fail
+Row  1: AA*******AA
+Row  2: AA*******AA
+Row  3: A********AA     ← wider
+Row  4: A********AA
+Row  5: AAA**AAAAAA     ← step: 2 fails
+Row  6: AAA**AAAA*A     ← step: 3 fails, scattered
+Row  7: AA*AAA*AA*A     ← pass zone with noise
+Row  8: A***AA*A**A     ← noisy
+Row  9: A*********A     ← heavy fail
+Row 10: A*********A     ← wide fail
+```
+
+### Key Constraints
+
+Grid: 11×11, characters A and *, rows joined by _.
+Row pairing: Rows (0,1,2), (3,4), (5,6), (7,8) often form near-identical pairs.
+Rows 0–4 always contain a centered fail band (2–9 cols wide) with A-borders.
+Rows 3–4 fail band is same or 1–2 cols wider than rows 0–2.
+Rows 5–6 (step): fail count drops to 0–5; mostly A.
+Rows 7–8: predominantly all-A (0–2 scattered fails max).
+```text
+Row 9: variable — ranges from all-A to wide fail band.
+Row 10: always has a fail band; width ≥ rows 0–4 fail width.
+```
+Fail contiguity: In rows 0–4 and 10, fails form a single contiguous run (no interleaved A's in the main crack); scattered noise is rare (0–2 flipped cells).
+Left/right symmetry: Borders don't need to be symmetric; slight asymmetry (±1–2 columns) between left and right borders is normal.
+Generation Algorithm
+import random
+
+def generate_crack_horiz_stepped_lower():
+    """Generate one 11x11 shmoo grid for crack_horiz-stepped-lower."""
+
+    # 1. Choose variant: wide / medium / narrow
+    variant = random.choices(['wide', 'medium', 'narrow'], weights=[25, 50, 25])[0]
+
+    if variant == 'wide':
+        left_02 = random.randint(1, 2)
+        right_02 = random.randint(1, 2)
+    elif variant == 'medium':
+        left_02 = random.randint(2, 4)
+        right_02 = random.randint(2, 4)
+    else:  # narrow
+        left_02 = random.randint(3, 5)
+        right_02 = random.randint(3, 5)
+
+    fail_width_02 = 11 - left_02 - right_02
+    if fail_width_02 < 2:
+        right_02 = max(1, right_02 - 1)
+        fail_width_02 = 11 - left_02 - right_02
+
+    # 2. Rows 0-2: upper crack top section
+    row_base_02 = 'A' * left_02 + '*' * fail_width_02 + 'A' * right_02
+    # Row 0 may be slightly narrower (+1 A on one side)
+    if random.random() < 0.3:
+        row0 = 'A' * (left_02 + 1) + '*' * max(1, fail_width_02 - 1) + 'A' * right_02
+    else:
+        row0 = row_base_02
+    row1 = row_base_02
+    row2 = row_base_02
+
+    # Add minor noise to rows 0-2 (flip 0-1 cells)
+    for r in [row0, row1, row2]:
+        pass  # keep clean for main band
+
+    # 3. Rows 3-4: upper crack bottom (same or wider)
+    left_34 = max(1, left_02 - random.randint(0, 1))
+    right_34 = max(1, right_02 - random.randint(0, 1))
+    fail_width_34 = 11 - left_34 - right_34
+    row34 = 'A' * left_34 + '*' * fail_width_34 + 'A' * right_34
+
+    # 4. Rows 5-6: transition (step)
+    n_fail_5 = random.randint(0, 5)
+    n_fail_6 = random.randint(0, 3)
+    row5 = list('AAAAAAAAAAA')
+    row6 = list('AAAAAAAAAAA')
+    crack_center = left_02 + fail_width_02 // 2
+    for _ in range(n_fail_5):
+        pos = min(10, max(0, crack_center + random.randint(-3, 3)))
+        row5[pos] = '*'
+    for _ in range(n_fail_6):
+        pos = min(10, max(0, crack_center + random.randint(-3, 3)))
+        row6[pos] = '*'
+    row5 = ''.join(row5)
+    row6 = ''.join(row6)
+
+    # 5. Rows 7-8: lower pass zone
+    row78 = list('AAAAAAAAAAA')
+    if random.random() < 0.25:
+        row78[random.randint(1, 9)] = '*'
+    row78 = ''.join(row78)
+
+    # 6. Row 9: variable
+    r = random.random()
+    if r < 0.40:
+        row9 = 'AAAAAAAAAAA'
+    elif r < 0.75:
+        row9 = list('AAAAAAAAAAA')
+        for _ in range(random.randint(1, 4)):
+            row9[random.randint(0, 10)] = '*'
+        row9 = ''.join(row9)
+    else:
+        # Wide fail
+        l9 = max(0, left_34 - random.randint(0, 1))
+        r9 = max(0, right_34 - random.randint(0, 1))
+        fw9 = 11 - l9 - r9
+        row9 = 'A' * l9 + '*' * fw9 + 'A' * r9
+
+    # 7. Row 10: bottom fail band (often wider)
+    left_10 = max(0, left_34 - random.randint(0, 1))
+    right_10 = max(0, right_34 - random.randint(0, 1))
+    fail_width_10 = 11 - left_10 - right_10
+    row10 = 'A' * left_10 + '*' * fail_width_10 + 'A' * right_10
+
+    rows = [row0, row1, row2, row34, row34, row5, row6, row78, row78, row9, row10]
+    return '_'.join(rows)
+
+---
+
+# Family: marginal
+
+## marginal_curve-BL-to-UR
+
+**Display name:** marginal curve-BL-to-UR  
+**Family:** marginal  
+**Class id:** `marginal_curve-BL-to-UR`
+
+### Class Description
+
+marginal_curve-BL-to-UR is a shmoo pattern with a smooth marginal pass/fail boundary that sweeps from the Bottom-Left corner toward the Upper-Right corner of an 11×11 grid.
+
+The grid uses two characters: - A = pass (silicon passes at that voltage/frequency point) - * = fail (silicon fails at that voltage/frequency point)
+
+Rows are separated by underscores (_). Row 0 is the top row; Row 10 is the bottom row. Columns 0–10 go left to right.
+
+### Visual Structure
+
+The pattern has a simple two-zone structure per row:
+
+[PASS_BLOCK] [FAIL_BLOCK]
+PASS_BLOCK — Leading contiguous A cells from the left edge. Narrow at the top (Row 0: 0–4 A's) and widens toward the bottom (Row 10: 9–11 A's), forming the main pass region. The count monotonically increases (non-decreasing) from Row 0 to Row 10.
+FAIL_BLOCK — Remaining * cells filling from the pass boundary to the right edge. Wide at the top, shrinking toward the bottom.
+The overall visual impression is a smooth curved diagonal boundary separating a Fail region (upper-right) from a Pass region (lower-left). The bottom rows are mostly or entirely pass, while the top rows are mostly fail. This represents a marginal silicon operating window — the device passes at lower frequencies/higher voltages (bottom-left) and fails at higher frequencies/lower voltages (upper-right).
+
+### Reference Examples
+
+Example 1 (S01761):                    Example 2 (S01791):
+```text
+Row 0:  AAAA*******  pass=4             Row 0:  ***********  pass=0
+Row 1:  AAAA*******  pass=4             Row 1:  ***********  pass=0
+Row 2:  AAAA*******  pass=4             Row 2:  A**********  pass=1
+Row 3:  AAAAA******  pass=5             Row 3:  A**********  pass=1
+Row 4:  AAAAA******  pass=5             Row 4:  AA*********  pass=2
+Row 5:  AAAAA******  pass=5             Row 5:  AAA********  pass=3
+Row 6:  AAAAAA*****  pass=6             Row 6:  AAAAA******  pass=5
+Row 7:  AAAAAAA****  pass=7             Row 7:  AAAAAAAA***  pass=8
+Row 8:  AAAAAAAA***  pass=8             Row 8:  AAAAAAAAAAA  pass=11
+Row 9:  AAAAAAAAA**  pass=9             Row 9:  AAAAAAAAAAA  pass=11
+Row10:  AAAAAAAAAAA  pass=11            Row10:  AAAAAAAAAAA  pass=11
+```
+
+Example 3 (S01752):                    Example 4 (S01793):
+```text
+Row 0:  A**********  pass=1             Row 0:  A**********  pass=1
+Row 1:  A**********  pass=1             Row 1:  A**********  pass=1
+Row 2:  A**********  pass=1             Row 2:  AA*********  pass=2
+Row 3:  A**********  pass=1             Row 3:  AAA********  pass=3
+Row 4:  AA*********  pass=2             Row 4:  AAAA*******  pass=4
+Row 5:  AAAAA******  pass=5             Row 5:  AAAAA******  pass=5
+Row 6:  AAAAAAAAAA*  pass=10            Row 6:  AAAAAAAA***  pass=8
+Row 7:  AAAAAAAAAAA  pass=11            Row 7:  AAAAAAAAAAA  pass=11
+Row 8:  AAAAAAAAAAA  pass=11            Row 8:  AAAAAAAAAAA  pass=11
+Row 9:  AAAAAAAAAAA  pass=11            Row 9:  AAAAAAAAAAA  pass=11
+Row10:  AAAAAAAAAAA  pass=11            Row10:  AAAAAAAAAAA  pass=11
+```
+Visual (. = pass/A, # = fail/*) for Example 1:
+
+```text
+....#######
+....#######
+....#######
+.....######
+.....######
+.....######
+......#####
+.......####
+........###
+.........##
+...........
+```
+
+### Per-Row Generation Rules
+
+Each row follows the structure: A × pass_width + * × (11 - pass_width).
+
+| Row | pass_width | Description |
+| --- | --- | --- |
+| 0 | 0–4 | Mostly fail; 0–4 leading A's |
+| 1 | 0–5 | Mostly fail; at least as many as Row 0 |
+| 2 | 1–5 | Mostly fail; slight increase |
+| 3 | 1–5 | Transition begins |
+| 4 | 2–6 | Transition zone |
+| 5 | 3–7 | Mid-transition |
+| 6 | 4–10 | Transition accelerates |
+| 7 | 4–11 | Nearing pass |
+| 8 | 5–11 | Mostly pass |
+| 9 | 6–11 | Mostly or all pass |
+| 10 | 9–11 | Nearly always full pass |
+
+### Key Constraints
+
+Monotonic pass curve: pass_width must monotonically increase (non-decreasing) from Row 0 to Row 10. Each row's pass_width is >= the previous row's.
+Smooth transitions: Between adjacent rows, pass_width increases by 0, 1, or 2. Occasionally a step of 3 is allowed in the steep middle transition zone (Rows 5–7), but steps > 3 should not occur.
+Total = 11: pass_width + fail_width = 11 for every row.
+Top rows mostly fail: Rows 0–2 are predominantly fail with 0–4 leading A's. Row 0 can be all * (pass_width = 0).
+Bottom rows mostly pass: Rows 8–10 are predominantly pass. Row 10 is almost always AAAAAAAAAAA (pass_width = 11).
+Row 10 full pass: Row 10 has pass_width of 9–11, with 11 being the most common (~85% of samples).
+Variety in steepness: The curve can be steep (big jumps in Rows 5–7, reaching full pass by Row 7–8) or gradual (steady 1-per-row increase throughout). Both are valid.
+Adjacent row plateaus allowed: Two or three consecutive rows may share the same pass_width, creating a plateau or "step" in the curve. This is common and valid.
+No scattered cells (clean patterns): ~85% of samples have clean two-zone patterns with no isolated A's in the fail region or isolated *'s in the pass region.
+Noise Variants (~15% of samples)
+A small fraction of samples exhibit minor noise: - Isolated A in fail region: 1–2 scattered A cells appear within the * fail zone (e.g., AAA**A*****). - Isolated * in pass region: 1 scattered * cell appears within the A pass zone (e.g., AAAAAAAAAA* in a bottom row that should be all pass, or AAAA*AAAAAA). - Noise is rare and minor: At most 1–2 noisy characters per row, affecting at most 2–3 rows in a sample. - Noise does not break monotonicity: The overall pass region still grows from top to bottom despite noise.
+
+Curve Shape Categories
+The samples fall into three broad steepness categories:
+
+| Category | Row 0 pass | Full-pass reached by | Description |
+| --- | --- | --- | --- |
+| Steep | 0–1 | Row 7–8 | Starts with almost no pass, rapid transition in Rows 4–7 |
+| Moderate | 1–2 | Row 8–9 | Gradual increase, reaches full pass near bottom |
+| Gradual | 3–5 | Row 10 | Starts with some pass, steady slow increase throughout |
+
+### Dominant Segment Patterns per Row
+
+| Row | Pattern | Description |
+| --- | --- | --- |
+| 0–2 | * or A* | All fail, or small pass block then fail |
+| 3–5 | A* | Growing pass block then fail |
+| 6–8 | A* or A | Large pass block, shrinking fail |
+| 9–10 | A or A* | Nearly or fully all pass |
+
+---
+
+## marginal_horiz-band-mid
+
+**Display name:** marginal horiz-band-mid  
+**Family:** marginal  
+**Class id:** `marginal_horiz-band-mid`
+
+### Class Description
+
+marginal_horiz-band-mid is a shmoo pattern with a horizontal fail band running through the middle of an 11×11 grid, sandwiched between pass regions on both the top and bottom.
+
+The grid uses two characters: - A = pass (silicon passes at that voltage/frequency point) - * = fail (silicon fails at that voltage/frequency point)
+
+Rows are separated by underscores (_). Row 0 is the top row; Row 10 is the bottom row. Columns 0–10 go left to right.
+
+### Visual Structure
+
+The pattern has five horizontal zones from top to bottom:
+
+Rows 0–3:   TOP PASS BLOCK     — all or nearly all A (pass)
+```text
+Row 4:      UPPER TRANSITION   — mostly pass, sometimes scattered fail
+Row 5:      UPPER EDGE         — transition into fail band (0–11 A's, scattered)
+```
+Rows 6–8:   FAIL BAND CORE     — mostly or entirely * (fail), 0–3 A's per row
+```text
+Row 9:      LOWER EDGE         — transition out of fail band (0–11 A's, scattered or full pass)
+Row 10:     BOTTOM PASS        — all or nearly all A (pass)
+```
+Key defining feature: Both the top AND bottom of the grid return to pass. The fail band is enclosed — it does not extend to the bottom edge. This distinguishes it from open-bottom variants.
+
+### Reference Examples
+
+Example 1 (S01943) — Clean symmetric:    Example 2 (S01947) — Noisy bottom edge:
+```text
+Row 0:  AAAAAAAAAAA  (11A)               Row 0:  AAAAAAAAAAA  (11A)
+Row 1:  AAAAAAAAAAA  (11A)               Row 1:  AAAAAAAAAAA  (11A)
+Row 2:  AAAAAAAAAAA  (11A)               Row 2:  AAAAAAAAAAA  (11A)
+Row 3:  AAAAAAAAAAA  (11A)               Row 3:  AAAAAAAAAAA  (11A)
+Row 4:  AAAAAAAAAAA  (11A)               Row 4:  AAAAAAAAAAA  (11A)
+Row 5:  AAAAAAAAAAA  (11A)               Row 5:  AAAAAAAAAAA  (11A)
+Row 6:  ***********  ( 0A)               Row 6:  ****A*A*A**  ( 3A)
+Row 7:  ***********  ( 0A)               Row 7:  ***********  ( 0A)
+Row 8:  ***********  ( 0A)               Row 8:  ***********  ( 0A)
+Row 9:  AAAAAAAAAAA  (11A)               Row 9:  A**AA**A**A  ( 5A)
+Row10:  AAAAAAAAAAA  (11A)               Row10:  AAAAAAAAAAA  (11A)
+```
+
+Example 3 (S01904) — Early transition:   Example 4 (S01910) — Noisy edges:
+```text
+Row 0:  AAAAAAAAAAA  (11A)               Row 0:  AAAAAAAAAAA  (11A)
+Row 1:  AAAAAAAAAAA  (11A)               Row 1:  AAAAAAAAAAA  (11A)
+Row 2:  AAAAAAAAAAA  (11A)               Row 2:  AAAAAAAAAAA  (11A)
+Row 3:  AAAAAAAAAAA  (11A)               Row 3:  AAAAAAAAAAA  (11A)
+Row 4:  AAA*AAAA**A  ( 8A)               Row 4:  AAAAAAAAAAA  (11A)
+Row 5:  **********A  ( 1A)               Row 5:  ******AAA**  ( 3A)
+Row 6:  ***********  ( 0A)               Row 6:  ***********  ( 0A)
+Row 7:  ***********  ( 0A)               Row 7:  ***********  ( 0A)
+Row 8:  ***********  ( 0A)               Row 8:  ***********  ( 0A)
+Row 9:  AAAAAAAAAAA  (11A)               Row 9:  *****AAAA**  ( 4A)
+Row10:  AAAAAAAAAAA  (11A)               Row10:  AAAAAAAAAAA  (11A)
+```
+Visual (. = pass/A, # = fail/*) for Example 1:
+
+```text
+...........
+...........
+...........
+...........
+...........
+...........
+###########
+###########
+###########
+...........
+...........
+```
+
+### Per-Row Generation Rules
+
+| Row | A count | Description |
+| --- | --- | --- |
+| 0 | 11 | Always full pass |
+| 1 | 11 | Always full pass |
+| 2 | 11 | Always full pass |
+| 3 | 11 | Always full pass |
+| 4 | 8–11 | Mostly pass; sometimes a few scattered * (upper transition) |
+| 5 | 0–11 | Upper edge of fail band; can be full pass, scattered A's, or all fail |
+| 6 | 0–3 | Fail band core; mostly/entirely *, 0–3 scattered A's |
+| 7 | 0 | Fail band core; always all * |
+| 8 | 0–1 | Fail band core; always all * or 1 scattered A |
+| 9 | 3–11 | Lower edge; returns to pass (full or noisy/scattered) |
+| 10 | 11 | Always full pass |
+
+### Key Constraints
+
+Rows 0–3 always full pass: All 11 A's, no exceptions.
+Row 10 always full pass: Always 11 A's.
+Rows 7–8 always all fail: Row 7 is always ***********. Row 8 is *********** or has at most 1 A.
+Row 6 is fail-dominant: 0–3 A's, scattered randomly.
+Row 9 must return to pass: At least 3 A's, usually 11 (full pass). This is the "closed bottom" requirement. When noisy, A's are scattered randomly.
+Row 5 is the upper edge: Ranges from all fail (0 A's) to full pass (11 A's). When partially pass, A's are scattered randomly throughout the row, not contiguous.
+Row 4 is near-pass: 8–11 A's. When not full pass, scattered * appear randomly.
+Fail band is 3 rows wide: The core fail band always spans Rows 6–8.
+Scattered noise: When transition rows (4, 5, 9) have partial A's, the A's are randomly scattered (not contiguous blocks). This creates the noisy/marginal appearance.
+Band Position Variants
+The fail band always occupies Rows 6–8, but the transition rows (5 and 9) control how "thick" the overall fail region appears:
+
+| Variant | Row 5 A's | Row 9 A's | Description |
+| --- | --- | --- | --- |
+| Narrow band | 9–11 | 11 | Fail only in rows 6–8, clean edges |
+| Medium band | 1–8 | 11 | Upper edge partially fails, clean bottom |
+| Wide band | 0–3 | 11 | Upper edge mostly fails, clean bottom |
+| Noisy bottom | any | 3–8 | Bottom edge has scattered pass recovery |
+| Noisy both | 1–8 | 3–8 | Both edges noisy/scattered |
+
+Noise Rules for Scattered A's
+When a row has partial A coverage (1–10 A's), the A cells are placed randomly across the 11 columns — not as a contiguous block. Each column independently has a probability of being A proportional to the target A count / 11.
+
+---
+
+## marginal_horiz-passing-1band
+
+**Display name:** marginal horiz-passing-1band  
+**Family:** marginal  
+**Class id:** `marginal_horiz-passing-1band`
+
+SKILL: marginal_horiz-passing-1band
+Description
+A shmoo pattern where the top portion is fully passing and the bottom portion is fully failing, separated by a single transitional edge row. This represents a horizontal 1-band marginal passing pattern — the device passes at higher Y-axis values and fails at lower Y-axis values, with a sharp horizontal boundary.
+
+Grid Structure (11×11)
+| Zone | Rows | Description |
+| --- | --- | --- |
+| Pass zone | 0–3 | All AAAAAAAAAAA (fully passing) |
+| Edge row | 4 | Mix of A and * — the transition boundary |
+| Fail zone | 5–10 | Mostly *********** (fully failing) |
+
+Per-Row Rules
+Rows 0–3 (Pass Zone)
+Always AAAAAAAAAAA (11 A's)
+Row 4 (Edge Row)
+Mix of A and * characters
+A count ranges from 1 to 10 (never all-fail, never all-pass)
+Distribution peaks at 3–5 A's (most common)
+A's are scattered randomly across the 11 columns — no required positional pattern
+This row represents the marginal boundary where some test conditions still pass
+Row 5 (Upper Fail)
+Mostly all *********** (0 A's)
+Occasionally has 1 sporadic A (~12% of samples)
+When A appears, it's a random single position (noise)
+Row 6 (Fail)
+Almost always *********** (0 A's)
+Very rarely has 1 sporadic A (~3% of samples)
+Rows 7–10 (Deep Fail)
+Always *********** (0 A's) — no exceptions in training data
+Edge Row A-Count Distribution (observed)
+| A count | Frequency | Approx % |
+| --- | --- | --- |
+| 1 | 4 | 12% |
+| 2 | 2 | 6% |
+| 3 | 7 | 21% |
+| 4 | 6 | 18% |
+| 5 | 5 | 15% |
+| 6 | 4 | 12% |
+| 7 | 2 | 6% |
+| 8 | 1 | 3% |
+| 9 | 1 | 3% |
+| 10 | 1 | 3% |
+
+Generation Rules
+Rows 0–3: AAAAAAAAAAA
+Row 4 (edge): Generate with random A count using weighted distribution: - A count 1–2: weight 2 each - A count 3–5: weight 4 each - A count 6–7: weight 3 each - A count 8–10: weight 1 each - Place A's at random positions within the 11 columns
+```text
+Row 5: 88% chance all *, 12% chance one random position is A
+Row 6: 97% chance all *, 3% chance one random position is A
+```
+Rows 7–10: Always ***********
+Constraints
+No persistent left-edge or right-edge passing in the fail zone (rows 5–10)
+i.e., column 0 should not be A in ≥3 of rows 5–10
+i.e., column 10 should not be A in ≥3 of rows 5–10
+Edge row (row 4) must have at least 1 A and at most 10 As
+Variant Transforms
+flipUD → marginal_horiz-passing-1band-flip (pass on bottom, fail on top)
+rotate90 CW → vertical 1-band variant
+Lwall / Rwall → with wall column added
+
+---
+
+## marginal_horiz-passing-2band
+
+**Display name:** marginal horiz-passing-2band  
+**Family:** marginal  
+**Class id:** `marginal_horiz-passing-2band`
+
+SKILL: marginal_horiz-passing-2band
+Description
+A shmoo pattern with two horizontal passing bands (top and bottom) separated by a fully failing region in the middle. Both the upper and lower boundaries of the fail zone have a transitional edge row with scattered passing cells. This represents a device that passes at both extremes of the Y-axis but fails in the mid-range.
+
+Grid Structure (11×11)
+| Zone | Rows | Description |
+| --- | --- | --- |
+| Top pass band | 0–3 | All AAAAAAAAAAA (fully passing) |
+| Upper edge row | 4 | Mix of A and * — upper transition boundary |
+| Fail zone | 5–8 | All *********** (fully failing) |
+| Lower edge row | 9 | Mix of A and * — lower transition boundary |
+| Bottom pass band | 10 | Mostly AAAAAAAAAAA (fully passing, occasional scattered *) |
+
+Per-Row Rules
+Rows 0–3 (Top Pass Band)
+Always AAAAAAAAAAA (11 A's)
+Row 4 (Upper Edge Row)
+Mix of A and * characters
+A count ranges from 1 to 7
+Distribution peaks at 4–5 A's (most common)
+A's are scattered randomly across the 11 columns
+Rows 5–8 (Fail Zone)
+Always *********** (0 A's) — no exceptions in training data
+Row 9 (Lower Edge Row)
+Mix of A and * characters
+A count ranges from 1 to 6
+Distribution peaks at 3–5 A's (most common)
+A's are scattered randomly across the 11 columns
+Independent of row 4 (no mirroring or correlation)
+Row 10 (Bottom Pass Band)
+~84% of samples: AAAAAAAAAAA (fully passing, 11 A's)
+~16% of samples: 9–10 A's with 1–2 random * positions (near-full passing)
+Upper Edge Row (Row 4) A-Count Distribution
+| A count | Observed | Approx % |
+| --- | --- | --- |
+| 1 | 3 | 7% |
+| 2 | 2 | 5% |
+| 3 | 7 | 16% |
+| 4 | 15 | 34% |
+| 5 | 11 | 25% |
+| 6 | 3 | 7% |
+| 7 | 3 | 7% |
+
+Lower Edge Row (Row 9) A-Count Distribution
+| A count | Observed | Approx % |
+| --- | --- | --- |
+| 1 | 3 | 7% |
+| 2 | 5 | 11% |
+| 3 | 10 | 23% |
+| 4 | 11 | 25% |
+| 5 | 10 | 23% |
+| 6 | 5 | 11% |
+
+Generation Rules
+Rows 0–3: AAAAAAAAAAA
+Row 4 (upper edge): Generate with random A count using weighted distribution: - A count 1–2: weight 1 each - A count 3: weight 3 - A count 4–5: weight 5 each - A count 6–7: weight 2 each - Place A's at random positions within the 11 columns
+Rows 5–8: Always ***********
+Row 9 (lower edge): Generate with random A count using weighted distribution: - A count 1: weight 1 - A count 2: weight 2 - A count 3–5: weight 4 each - A count 6: weight 2 - Place A's at random positions within the 11 columns
+Row 10 (bottom pass band): - 84% chance: AAAAAAAAAAA (all 11 A's) - 16% chance: 9–10 A's with 1–2 random *s
+Constraints
+Row 4 must have at least 1 A and at most 7 As
+Row 9 must have at least 1 A and at most 6 As
+Rows 5–8 must be pure fail — no stray A's
+Row 10 must have at least 9 A's
+Variant Transforms
+flipUD → bottom pass band on top, top pass band on bottom
+flipLR → left-right mirror of edge rows
+Lwall / Rwall → with wall column added
+ceil / floor → with fail row added at top or bottom
+
+---
+
+## marginal_horiz-special-stepped
+
+**Display name:** marginal horiz-special-stepped  
+**Family:** marginal  
+**Class id:** `marginal_horiz-special-stepped`
+
+SKILL: marginal_horiz-special-stepped
+Description
+A shmoo pattern with a horizontal pass zone at the top and a stepped staircase recovery from the right side below. The top portion is fully passing. Below a transition zone, the fail region gives way to a right-aligned staircase of passing cells that grows wider going downward. The resulting shape looks like a staircase ascending from bottom-right.
+
+Grid Structure (11×11)
+| Zone | Rows | Description |
+| --- | --- | --- |
+| Top pass zone | 0–1 | Always AAAAAAAAAAA (fully passing) |
+| Upper transition | 2–4 | Gradual onset of fail — variable per sample |
+| Staircase zone | 5–10 | Right-aligned A's increasing downward |
+
+Per-Row Rules
+Row 0 (Top Pass)
+Always AAAAAAAAAAA (11 A's)
+Row 1 (Top Pass — rarely broken)
+~90% of samples: AAAAAAAAAAA (fully passing)
+~10% of samples: 10 A's with 1 * at rightmost position (onset hint)
+Row 2 (Early Transition — optional)
+~70% of samples: AAAAAAAAAAA (fully passing)
+~30% of samples: left-aligned A block (3–9 A's) with *s on the right
+When partial: A's are left-contiguous; fail starts from the right side
+Row 3 (Main Transition Onset)
+~40% of samples: AAAAAAAAAAA (fully passing, staircase starts at row 4+)
+~60% of samples: left-aligned A block (5–9 A's) with *s on the right
+Noise: 0–2 scattered chars may deviate from the clean block
+Row 4 (Transition / Deep Fail)
+~20% of samples: AAAAAAAAAAA or near-full passing (late-onset staircase)
+~80% of samples: mostly * with 0–3 right-aligned A's plus 0–2 noise A's
+This is the deepest fail row — the "valley" before the staircase recovery
+Rows 5–10 (Staircase Zone)
+A's are right-aligned, forming a staircase shape that grows wider downward
+The right-contiguous A count generally increases going downward
+Noise: 0–1 scattered A's left of the main block; 0–1 * within the block (~10% chance per row)
+Right-aligned A-count ranges per row (observed):
+| Row | Min right-A | Max right-A | Typical |
+| --- | --- | --- | --- |
+| 5 | 2 | 6 | 2–4 |
+| 6 | 2 | 6 | 3–5 |
+| 7 | 3 | 8 | 4–6 |
+| 8 | 5 | 8 | 5–7 |
+| 9 | 5 | 9 | 7–9 |
+| 10 | 6 | 10 | 7–9 |
+
+Staircase Monotonicity Rule
+rightA[row] >= rightA[row-1] for rows 5 through 10
+Step increments are 0–2 per row (typically 1)
+Generation Rules
+```text
+Row 0: Always AAAAAAAAAAA
+Row 1: 90% fully passing; 10% one * at position 10
+Row 2: 70% fully passing; 30% partial: - If partial: left-aligned A block of length 3–9, rest *, scatter 0–1 noise A in fail zone
+Row 3: 40% fully passing; 60% transition: - If transition: left-aligned A block of length 5–9, rest *, scatter 0–2 noise
+Row 4: 20% fully passing / near-full; 80% deep fail: - If deep fail: 0–3 right-aligned A's plus 0–2 scattered noise A's
+```
+Rows 5–10 (staircase): - Start at row 5 with right-A count of 2–4 - Each subsequent row: increase right-A count by 0–2 (weighted: 0=15%, 1=55%, 2=30%) - Cap at 10 (cannot exceed column count) - Bottom row (10) must have at least 6 right-aligned A's - Place A's at rightmost positions (right-contiguous block) - Add 0–1 noise: random * within the A block or random A left of the block (~10% chance per row)
+Constraints
+Row 0 must be fully passing (11 A's)
+Staircase right-A counts must be monotonically non-decreasing from row 5 to row 10
+Row 10 must have at least 6 right-aligned A's
+No row in the staircase zone (5–10) should be fully failing (0 A's)
+The overall visual must show a clear staircase ascending from bottom-right
+Variant Transforms
+flipUD → staircase descends from top-right
+flipLR → staircase ascends from bottom-left
+rotate90 CW → vertical stepped variant
+
+---
+
+## marginal_vert-curve
+
+**Display name:** marginal vert-curve  
+**Family:** marginal  
+**Class id:** `marginal_vert-curve`
+
+SKILL: marginal_vert-curve
+Description
+A shmoo pattern with a vertical parabolic curve boundary between the pass zone (left) and fail zone (right). The pass region is widest at the top and bottom edges (rows 0 and 10) and narrows toward the middle rows (rows 4–6), forming a concave curve. The fail region bulges leftward at the center. This represents a device where the passing voltage/frequency range constricts in the mid-range of the Y-axis.
+
+Grid Structure (11×11)
+| Zone | Rows | Description |
+| --- | --- | --- |
+| Upper shoulder | 0 | Wide pass zone, A-count 6–9 (median 8) |
+| Upper slope | 1–2 | Pass zone narrows, A-count decreasing toward center |
+| Upper transition | 3 | Approaching the curve apex, A-count 2–8 (median 5) |
+| Curve apex | 4–6 | Narrowest pass zone, A-count 2–7 (median 4) |
+| Lower transition | 7 | Moving away from apex, A-count 2–8 (median 5) |
+| Lower slope | 8–9 | Pass zone widens, A-count increasing toward edge |
+| Lower shoulder | 10 | Wide pass zone, A-count 6–9 (median 8) |
+
+Per-Row A-Count Statistics (from 79 samples)
+| Row | Min | Max | Avg | Median |
+| --- | --- | --- | --- | --- |
+| R0 | 6 | 9 | 7.8 | 8 |
+| R1 | 4 | 9 | 6.8 | 7 |
+| R2 | 4 | 9 | 6.0 | 6 |
+| R3 | 2 | 8 | 5.0 | 5 |
+| R4 | 2 | 7 | 4.2 | 4 |
+| R5 | 2 | 7 | 4.2 | 4 |
+| R6 | 2 | 7 | 4.1 | 4 |
+| R7 | 2 | 8 | 5.1 | 5 |
+| R8 | 4 | 8 | 5.9 | 6 |
+| R9 | 4 | 9 | 6.9 | 7 |
+| R10 | 6 | 9 | 7.9 | 8 |
+
+Key Pattern Properties
+Symmetry: ~81% of entries are approximately top-bottom symmetric (sum of |A(Ri) - A(R10-i)| ≤ 5)
+Curve vertex: The minimum A-count row is centered around rows 4–6, with row 4 most common (35%), row 5 (25%), row 6 (14%)
+Monotonic trend: A-counts generally decrease from edges to center, though per-row noise allows ±1 deviations
+Noise: ~37% of entries contain at least one scattered noise character (A in fail region or * in pass region); overall noise rate ~0.8% of total characters
+Row format: Each row has a contiguous block of leading A's followed by trailing *'s, with occasional scattered noise
+Generation Rules
+Determine curve depth: Pick a depth shift ∈ {-1, 0, +1} with weights {2, 4, 2} — shifts the minimum A-count at the apex
+Determine position shift: Pick a global offset ∈ {-1, 0, +1} with weights {2, 5, 2} — shifts all A-counts uniformly
+For each row r (0–10): - Base A-count from template: [8, 7, 6, 5, 4, 4, 4, 5, 6, 7, 8] - Apply depth shift scaled by proximity to center: depth_contribution = round(depthShift × (1 - |r - 5| / 5)) - Apply per-row noise: random ∈ {-1, 0, +1} - Final A-count = clamp(base + posShift + depth_contribution + noise, 2, 9) - Generate row: A × aCount + * × (11 - aCount)
+Apply scattered noise: 8% chance per row of flipping one random interior character (positions 1–9)
+Shmoo Class: marginal_vert-curve
+Template Pattern (ideal)
+A A A A A A A A * * *   (R0:  8A)
+A A A A A A A * * * *   (R1:  7A)
+A A A A A A * * * * *   (R2:  6A)
+A A A A A * * * * * *   (R3:  5A)
+A A A A * * * * * * *   (R4:  4A)  ← apex
+A A A A * * * * * * *   (R5:  4A)  ← apex
+A A A A * * * * * * *   (R6:  4A)  ← apex
+A A A A A * * * * * *   (R7:  5A)
+A A A A A A * * * * *   (R8:  6A)
+A A A A A A A * * * *   (R9:  7A)
+A A A A A A A A * * *   (R10: 8A)
+
+---
+
+# Family: near-solid
+
+## near-solid_horiz-bl_cntr_ur
+
+**Display name:** near-solid horiz-bl cntr ur  
+**Family:** near-solid  
+**Class id:** `near-solid_horiz-bl_cntr_ur`
+
+SKILL: near-solid_horiz-bl_cntr_ur
+Pattern Summary
+An 11×11 nearly all-pass (A) shmoo grid with exactly 3 sparse defect clusters arranged along a diagonal from bottom-left to upper-right, passing through the center. The three regions are: bottom-left (BL), center (CNTR), and upper-right (UR). All other areas are clean pass.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Defect Placement Rules
+Upper-Right Region (UR)
+Region: rows 0-1, cols 9-10 (2×2 block)
+Stars: 1 star (~92%) or 2 stars (~8%)
+Position distributed across r0c9, r0c10, r1c9, r1c10
+r1c10 is slightly favored
+Center Region (CNTR)
+Region: rows 5-6, cols 5-6 (2×2 block)
+Stars: always exactly 1 star (100%)
+Position distributed across r5c5, r5c6, r6c5, r6c6
+r5c5 and r6c5 slightly favored over c6 positions
+Bottom-Left Region (BL)
+Region: rows 9-10, cols 0-1 (2×2 block)
+Stars: 1 star (~90%) or 2 stars (~10%)
+Position distributed across r9c0, r9c1, r10c0, r10c1
+r10c1 slightly favored
+Clean Zones
+Rows 2-4: always AAAAAAAAAAA
+Rows 7-8: always AAAAAAAAAAA
+All columns outside the 2×2 corner/center blocks in defect rows: always A
+Star Budget
+Total stars per sample: 3 (most common) or 4 (when UR or BL has 2 stars)
+Average: ~3.18 stars per grid
+Generation Algorithm
+1. Create 11×11 grid of all 'A'
+2. For UR: pick 1 random cell from {r0c9, r0c10, r1c9, r1c10}; set to '*'
+   - ~8% chance: pick a second distinct cell from same set, also set to '*'
+3. For CNTR: pick 1 random cell from {r5c5, r5c6, r6c5, r6c6}; set to '*'
+4. For BL: pick 1 random cell from {r9c0, r9c1, r10c0, r10c1}; set to '*'
+   - ~10% chance: pick a second distinct cell from same set, also set to '*'
+5. Join rows with '_' separator
+Visual Example
+```text
+AAAAAAAAA*A    ← UR star at r0c9
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAA*AAAAA    ← Center star at r5c5
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+A*AAAAAAAAA    ← BL star at r10c1
+```
+Diagonal Relationship
+The three defect clusters form a diagonal line from the bottom-left corner through the center to the upper-right corner, creating a characteristic "anti-diagonal sparse defect" signature in near-solid shmoo patterns.
+
+---
+
+## near-solid_horiz-bot-br
+
+**Display name:** near-solid horiz-bot-br  
+**Family:** near-solid  
+**Class id:** `near-solid_horiz-bot-br`
+
+SKILL: near-solid_horiz-bot-br
+Pattern Summary
+An 11×11 nearly all-pass (A) shmoo grid with a dense horizontal block at the bottom-right (rows 9-10, cols 0-9) and a decaying edge row (row 8) above it. Rows 0-7 are completely clean. Rows 9 and 10 are always identical: **********A (10 stars, col 10 always pass). Row 8 has scattered stars as a "crumbling edge" transition, always with fewer stars than rows 9-10 and col 10 always pass.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Defect Placement Rules
+Dense Block (Rows 9-10)
+Rows 9 and 10 are always identical: **********A
+Exactly 10 stars per row (cols 0-9 fail, col 10 pass)
+Col 10 is always A
+Decaying Edge (Row 8)
+Fewer stars than rows 9-10 (always strictly < 10)
+Star count distribution:
+1 star: ~3%
+3 stars: ~6%
+4 stars: ~13%
+5 stars: ~13%
+6 stars: ~38% (most common)
+7 stars: ~16%
+8 stars: ~9%
+9 stars: ~3%
+Average: ~5.7 stars
+Col probability: cols 2,4,8 most likely (~69%); cols 0,1 least likely (~35-47%)
+Col 10 is always A (never has a star)
+Stars are scattered/fragmented — not a solid contiguous run
+Clean Zone (Rows 0-7)
+Always AAAAAAAAAAA (completely pass)
+Star Budget
+Dense rows (9-10): always 10 stars each
+Decaying row (8): 1-9 stars (avg ~5.7)
+Total per sample: ~21-29 stars
+Generation Algorithm
+1. Create 11×11 grid of all 'A'
+2. Set rows 9 and 10 to '**********A'
+3. For row 8:
+   a. Pick star count from weighted distribution: {3:6%, 4:13%, 5:13%, 6:38%, 7:16%, 8:9%, 9:3%}
+      (rare: 1-2 stars ~3%)
+   b. Place stars randomly in cols 0-9 (NEVER col 10)
+   c. Interior cols (2-9) have ~60-69% probability; edge cols (0-1) have ~35-47%
+4. Rows 0-7 remain all 'A'
+5. Join rows with '_' separator
+Visual Example
+```text
+AAAAAAAAAAA    ← row 0 (clean)
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA    ← row 7 (clean)
+***AA*AAAAA    ← row 8 (decaying edge, 4 stars, col 10 = A)
+**********A    ← row 9 (dense block, 10 stars)
+**********A    ← row 10 (identical to row 9)
+```
+
+---
+
+## near-solid_horiz-crack-1line-noisy
+
+**Display name:** near-solid horiz-crack-1line-noisy  
+**Family:** near-solid  
+**Class id:** `near-solid_horiz-crack-1line-noisy`
+
+SKILL: near-solid_horiz-crack-1line-noisy
+Pattern Summary
+An 11×11 nearly all-pass (A) shmoo grid with a horizontal crack on row 2 (7-10 stars), scatter on row 1 (0-5 stars), optional spill on row 3 (0-3 stars), and 2-6 noise stars scattered across body/edge rows (rows 0, 4-10). This is the noisy variant of near-solid_horiz-crack-1line: same crack+scatter structure but with additional random defect noise outside the crack zone.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Defect Placement Rules
+Row 2 — Main Crack (always present)
+Star count: 7-10 (avg 8.6)
+7 stars: ~14%
+8 stars: ~33%
+9 stars: ~33%
+10 stars: ~20%
+Stars concentrated in cols 1-9; col 10 is most likely A (80%); col 0 is A ~51%
+Interior cols 1-7 are nearly always * (92-98%); cols 8-9 are * ~69-79%
+Creates a dense horizontal fail band across the row
+Row 1 — Scatter (present in ~94% of rows)
+Star count: 0-5 (avg 1.8 when present)
+0 stars: ~6%
+1 star: ~37%
+2 stars: ~37%
+3 stars: ~8%
+4 stars: ~8%
+5 stars: ~4%
+Stars are spread across all 11 cols fairly evenly (~12-20% per col)
+Represents pre-crack scatter above the main crack line
+Row 3 — Spill (present in ~67% of rows)
+Star count: 0-3 (avg 1.1 when present)
+0 stars: ~33%
+1 star: ~35%
+2 stars: ~24%
+3 stars: ~8%
+Stars favor cols 1-2 (~20% each); other cols ~2-12%
+Represents slight crack spillover below the main line
+Rows 0, 4-10 — Noise Zone
+Total noise stars (outside rows 1-2-3): 1-5 (avg ~3.0)
+Noise is scattered across rows 0, 4-10 with 1 star per row (rarely 2-3)
+Row frequency (how often each row has ≥1 noise star):
+```text
+Row 0: ~39%
+Row 4: ~45%
+Row 5: ~22%
+Row 6: ~27%
+Row 7: ~27%
+Row 8: ~29%
+Row 9: ~43%
+Row 10: ~51%
+```
+Edge rows (0, 9, 10) get noise more frequently than body rows (5-8)
+Each noise star is placed at a random column
+Star Budget
+Row 2 crack: 7-10 stars
+Row 1 scatter: 0-5 stars
+Row 3 spill: 0-3 stars
+Noise (rows 0, 4-10): 1-5 stars
+Total per sample: ~12-20 stars (avg ~15)
+Generation Algorithm
+1. Create 11×11 grid of all 'A'
+2. ROW 2 — Main crack:
+   a. Pick star count from weighted distribution: {7:14%, 8:33%, 9:33%, 10:20%}
+   b. Always place stars in cols 1-7 (these are ~95% fail)
+   c. Fill remaining star budget from cols 8, 9, 0 with decreasing probability
+   d. Col 10 has ~20% chance of being star
+3. ROW 1 — Scatter:
+   a. With 94% probability, place 1-5 stars (weighted: {1:39%, 2:39%, 3:9%, 4:9%, 5:4%})
+   b. Place stars at random columns (each col ~15% chance)
+4. ROW 3 — Spill:
+   a. With 67% probability, place 1-3 stars (weighted: {1:52%, 2:36%, 3:12%})
+   b. Slightly favor cols 1-2 for placement
+5. NOISE — Rows 0, 4-10:
+   a. Pick total noise count: 2-5 stars (avg ~3)
+   b. Select that many distinct rows from {0,4,5,6,7,8,9,10}
+      - Edge rows (0,9,10) have ~1.5× weight vs body rows (5-8)
+      - Row 4 has ~1.3× weight
+   c. Place 1 star at a random column in each selected row
+6. Join rows with '_' separator
+Visual Example
+```text
+AAAAAAAAAAA    ← row 0 (clean or 1 noise star)
+A*AAAAAAAAA    ← row 1 (1 scatter star at col 1)
+A*********A    ← row 2 (main crack, 9 stars cols 1-9)
+AA*AAAAAAAA    ← row 3 (1 spill star at col 2)
+AAAAAAAAAAA    ← row 4 (clean or noise)
+AAAAAAAAAAA    ← row 5 (clean)
+AAAAAA*AAAA    ← row 6 (1 noise star)
+AAAAAAAAAAA    ← row 7 (clean)
+AAAAAAAAAAA    ← row 8 (clean)
+AAA*AAAAAAA    ← row 9 (1 noise star)
+AAAAA*AAAAA    ← row 10 (1 noise star)
+```
+
+### Distinguishing Features
+
+vs near-solid_horiz-crack-1line: Same crack structure but with random noise stars scattered across rows 0, 4-10 (the clean version has zero stars outside rows 1-3)
+vs near-solid_horiz-crack-1line-clean (deprecated): The noisy variant always has noise stars somewhere outside the crack zone
+Row 2 crack is the dominant feature; noise is secondary and sparse
+
+---
+
+## near-solid_horiz-crack-center-scattered
+
+**Display name:** near-solid horiz-crack-center-scattered  
+**Family:** near-solid  
+**Class id:** `near-solid_horiz-crack-center-scattered`
+
+SKILL: near-solid_horiz-crack-center-scattered
+Pattern Summary
+An 11×11 nearly all-pass (A) shmoo grid with a horizontal crack band in the center region (rows 2-7) composed of scattered/fragmented fail stars. The crack occupies 1-4 consecutive rows with one primary row carrying the most defects and 1-2 adjacent scatter rows with fewer stars. Rows 0-1 are always clean. Rows 8-10 are usually clean with occasional sparse noise. The key distinguishing feature is that the crack band is centered vertically in the grid and the fail pattern is scattered (not solid contiguous lines).
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Defect Placement Rules
+Clean Upper Border (Rows 0-1)
+Always AAAAAAAAAAA (completely pass)
+Never contains any stars
+Crack Band (Rows 2-7)
+The crack band occupies 1-4 consecutive rows within rows 2-7. The band has a center row that determines its vertical position in the grid.
+
+Crack center row selection: - Row 3: ~25% of samples - Row 4: ~45% of samples (most common) - Row 5: ~30% of samples
+
+Crack band width (number of rows with defects): - 1 row: ~10% - 2 rows: ~35% (most common) - 3 rows: ~40% - 4 rows: ~15%
+
+The band extends symmetrically or asymmetrically around the center row, always staying within rows 2-7.
+
+Primary Crack Row (always present)
+The row with the most stars in the band
+Typically the crack center row or 1 row below it
+Star count: 2-11 (avg ~5.5)
+2-3 stars: ~20%
+4-6 stars: ~40%
+7-9 stars: ~25%
+10-11 stars: ~15%
+Stars are scattered randomly across all 11 columns (no column preference)
+Adjacent Scatter Rows (1-2 rows above/below primary)
+Each scatter row has 1-6 stars (avg ~2.3)
+1 star: ~30%
+2 stars: ~35%
+3 stars: ~20%
+4-6 stars: ~15%
+Stars placed at random columns, independent of the primary row positions
+Clean Lower Region (Rows 8-10)
+Usually all A (clean in ~85% of samples)
+Noise probability per row:
+```text
+Row 8: ~6% chance of 1 star
+Row 9: ~15% chance of 1-3 stars (most common noise row)
+Row 10: ~6% chance of 1 star
+```
+Star Budget
+Crack band: 3-20 stars (avg ~8.5)
+Noise (rows 8-10): 0-3 stars (avg ~0.4)
+Total per sample: 4-20 stars (avg ~8.8)
+Generation Algorithm
+1. Create 11×11 grid of all 'A'
+2. Choose crack center row from {3, 4, 5} with weights {25%, 45%, 30%}
+3. Choose crack band width from {1, 2, 3, 4} with weights {10%, 35%, 40%, 15%}
+4. Determine which rows are in the crack band:
+   - Width 1: just the center row
+   - Width 2: center row + 1 row below (or above if center=5 and would exceed row 7)
+   - Width 3: center row ± 1 (clamped to rows 2-7)
+   - Width 4: center row ± 1-2 (clamped to rows 2-7)
+5. Designate the primary row (center row or 1 below it):
+   a. Pick star count from weighted distribution:
+      {2:8%, 3:12%, 4:12%, 5:15%, 6:13%, 7:10%, 8:8%, 9:7%, 10:8%, 11:7%}
+   b. Place stars at random columns (uniform across cols 0-10)
+6. For each remaining row in the crack band (scatter rows):
+   a. Pick star count from weighted distribution:
+      {1:30%, 2:35%, 3:20%, 4:8%, 5:5%, 6:2%}
+   b. Place stars at random columns
+7. NOISE — Rows 8-10 (optional):
+   a. Row 9: ~15% chance → place 1-3 stars at random columns
+   b. Rows 8, 10: ~6% each → place 1 star at random column
+8. Rows 0-1 remain all 'A'
+9. Join rows with '_' separator
+Visual Example
+```text
+AAAAAAAAAAA    ← row 0 (always clean)
+AAAAAAAAAAA    ← row 1 (always clean)
+AAAAAAAAAAA    ← row 2 (clean — crack starts at row 3 in this example)
+AA***A***AA    ← row 3 (scatter row, 5 stars)
+AAAA*AAAAAA    ← row 4 (scatter row, 1 star)
+AAAAAAAAAAA    ← row 5 (clean)
+AAAAAAAAAAA    ← row 6 (clean)
+AAAAAAAAAAA    ← row 7 (clean)
+AAAAAAAAAAA    ← row 8 (clean)
+AAAAAAAAAAA    ← row 9 (clean)
+AAAAAAAAAAA    ← row 10 (clean)
+AAAAAAAAAAA    ← row 0 (clean)
+AAAAAAAAAAA    ← row 1 (clean)
+AAAAAAAAAAA    ← row 2 (clean)
+AAAAAAAAAAA    ← row 3 (clean)
+****AAA****    ← row 4 (primary crack, 7 stars scattered)
+A*******A**    ← row 5 (scatter row, 8 stars)
+AAAAAAAAAAA    ← row 6 (clean)
+AAAAAAAAAAA    ← row 7 (clean)
+AAAAAAAAAAA    ← row 8 (clean)
+AAAAAAAAAAA    ← row 9 (clean)
+AAAAAAAAAAA    ← row 10 (clean)
+AAAAAAAAAAA    ← row 0 (clean)
+AAAAAAAAAAA    ← row 1 (clean)
+AAAAAAAAAAA    ← row 2 (clean)
+AAAAAAAAAAA    ← row 3 (clean)
+AA***AAAAA*    ← row 4 (scatter, 4 stars)
+A*AAAA*A*AA    ← row 5 (scatter, 3 stars)
+*AAAA*AA*AA    ← row 6 (scatter, 3 stars)
+AAAAAA*AAAA    ← row 7 (scatter, 1 star)
+AAAAAAAAAAA    ← row 8 (clean)
+AAAAAAAAAAA    ← row 9 (clean)
+AAAAAAAAAAA    ← row 10 (clean)
+```
+
+### Distinguishing Features
+
+vs near-solid_horiz-crack-1line: The crack here spans multiple rows with scattered stars, not a single dense line. The crack is also centered (rows 2-7) rather than always at row 2.
+vs near-solid_horiz-crack-1line-noisy: The noisy variant has a dense single-row crack at row 2 plus random noise. This pattern has a wider, more diffuse crack band centered in the grid.
+vs crack_horiz-3band-*: Crack classes have much higher total star counts with multiple dense horizontal bands. This near-solid class has far fewer total stars and the crack rows are fragmented rather than dense.
+The "center" designation means the crack band appears in the vertical middle of the grid (rows 2-7), never at the very top (row 0-1) or bottom (rows 9-10) edges.
+The "scattered" designation means stars within the crack are randomly distributed across columns, not concentrated in contiguous runs.
+
+---
+
+## near-solid_horiz-thin-edge
+
+**Display name:** near-solid horiz-thin-edge  
+**Family:** near-solid  
+**Class id:** `near-solid_horiz-thin-edge`
+
+SKILL: near-solid_horiz-thin-edge
+Pattern Summary
+An 11×11 nearly all-pass (A) shmoo grid with a very sparse horizontal defect band at the bottom edge (rows 9-10 only). Rows 0-8 are always completely clean. The defect consists of just 2-3 isolated stars scattered across rows 9 and 10, with both rows always containing at least one star. No two stars are adjacent in the same row. The stars are spread across a wide column range (span ≥ 3 columns).
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Defect Placement Rules
+Clean Zone (Rows 0-8)
+Always AAAAAAAAAAA (completely pass)
+Never contains any stars
+Row 9 — First Edge Row (always has stars)
+Star count: 1 (~78%) or 2 (~22%)
+Stars placed at random columns across all 11 positions (cols 0-10)
+Column distribution roughly uniform, slight preference for cols 4, 9
+No adjacent stars — when 2 stars present, they must have ≥ 1 A gap between them
+Row 10 — Second Edge Row (always has stars)
+Star count: 1 (~54%) or 2 (~46%)
+Stars placed at random columns across all 11 positions (cols 0-10)
+Column distribution roughly uniform, slight preference for cols 0, 4, 9
+No adjacent stars — when 2 stars present, they must have ≥ 1 A gap between them
+Cross-Row Distribution Constraint
+Stars across rows 9 and 10 must span a column range ≥ 3 (i.e., the distance between the leftmost and rightmost star columns across both rows combined is at least 3)
+This ensures stars are visually "spread out" rather than vertically aligned or clustered in a narrow column band
+Star Combos (row 9 count, row 10 count)
+(1, 1): ~32% — 1 star in each row (2 total)
+(1, 2): ~46% — 1 star in row 9, 2 in row 10 (3 total)
+(2, 1): ~22% — 2 stars in row 9, 1 in row 10 (3 total)
+Star Budget
+Total per sample: 2 (~32%) or 3 (~68%)
+Average: ~2.7 stars per grid
+Generation Algorithm
+1. Create 11×11 grid of all 'A'
+2. Pick star combo from weighted distribution:
+   - (1,1): 32%  — 1 star r9, 1 star r10
+   - (1,2): 46%  — 1 star r9, 2 stars r10
+   - (2,1): 22%  — 2 stars r9, 1 star r10
+3. For ROW 9:
+   a. Pick star count (1 or 2 per combo)
+   b. Place stars at random non-adjacent columns from cols 0-10
+4. For ROW 10:
+   a. Pick star count (1 or 2 per combo)
+   b. Place stars at random non-adjacent columns from cols 0-10
+5. VALIDATE spread:
+   a. Collect all star column positions from rows 9 and 10
+   b. Column span = max(cols) - min(cols) must be ≥ 3
+   c. If not, re-pick row 10 positions (retry)
+6. Rows 0-8 remain all 'A'
+7. Join rows with '_' separator
+Visual Example
+```text
+AAAAAAAAAAA    ← row 0 (clean)
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA    ← row 8 (clean)
+AAAA*AAAAAA    ← row 9 (1 star at col 4)
+AAAAAAAA*AA    ← row 10 (1 star at col 8)
+AAAAAAAAAAA    ← row 0 (clean)
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA    ← row 8 (clean)
+AA*AAAAAAAA    ← row 9 (1 star at col 2)
+*AAAAA*AAAA    ← row 10 (2 stars at cols 0, 6)
+```
+
+### Distinguishing Features
+
+vs near-solid_horiz-bot-br / near-solid_horiz-bot-bl: Those classes have dense solid blocks at the bottom (8-10+ stars per row). This class has only 2-3 total scattered isolated stars.
+vs near-solid_horiz-crack-*: Crack classes have stars concentrated in the center rows (2-7). This class has defects exclusively at the bottom edge (rows 9-10).
+vs all-pass: Very similar but always has 2-3 stars at the bottom edge. The extremely sparse defect count makes this one of the most "almost solid" patterns.
+The "thin" designation indicates minimal star count (2-3 total).
+The "edge" designation indicates bottom-edge-only placement.
+Stars are always isolated (no adjacent pairs) and spread across a wide column range.
+
+---
+
+## near-solid_vert-3corners-ul-bl-br
+
+**Display name:** near-solid vert-3corners-ul-bl-br  
+**Family:** near-solid  
+**Class id:** `near-solid_vert-3corners-ul-bl-br`
+
+SKILL: near-solid_vert-3corners-ul-bl-br
+Pattern Summary
+An 11×11 nearly all-pass (A) shmoo grid with exactly 3 sparse defect clusters located at the upper-left, bottom-left, and bottom-right corners. The interior (rows 2-8, cols 2-8) is always clean (AAAAAAAAAAA). The upper-right corner is always clean.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Defect Placement Rules
+Upper-Left Corner (UL)
+Region: rows 0-1, cols 0-1 (2×2 block)
+Stars: 1 star (~94%) or 2 stars (~6%)
+Position equally distributed across r0c0, r0c1, r1c0, r1c1
+Remaining row cells are all A
+Bottom-Left Corner (BL)
+Region: rows 9-10, cols 0-1 (2×2 block)
+Stars: 1 star (~96%) or 2 stars (~4%)
+Position equally distributed across r9c0, r9c1, r10c0, r10c1
+Remaining row cells are all A
+Bottom-Right Corner (BR)
+Region: rows 9-10, cols 9-10 (2×2 block)
+Stars: 1 star (~92%) or 2 stars (~8%)
+Position equally distributed across r9c9, r9c10, r10c9, r10c10
+Remaining row cells are all A
+Clean Zones
+Rows 2-8: always AAAAAAAAAAA (completely pass)
+Cols 2-8 in corner rows: always A
+Upper-right corner (rows 0-1, cols 9-10): always clean
+Star Budget
+Total stars per sample: 3 (most common) or 4 (when one corner has 2 stars)
+Average: ~3.2 stars per grid
+Generation Algorithm
+1. Create 11×11 grid of all 'A'
+2. For UL corner: pick 1 random cell from {r0c0, r0c1, r1c0, r1c1}; set to '*'
+   - ~6% chance: pick a second distinct cell from same set, also set to '*'
+3. For BL corner: pick 1 random cell from {r9c0, r9c1, r10c0, r10c1}; set to '*'
+   - ~4% chance: pick a second distinct cell from same set, also set to '*'
+4. For BR corner: pick 1 random cell from {r9c9, r9c10, r10c9, r10c10}; set to '*'
+   - ~8% chance: pick a second distinct cell from same set, also set to '*'
+5. Join rows with '_' separator
+Visual Example
+```text
+A*AAAAAAAAA    ← UL star at r0c1
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+AAAAAAAAAAA
+*AAAAAAAA*A    ← BL star at r9c0, BR star at r9c9
+AAAAAAAAAAA
+```
+
+---
+
+# Family: passing
+
+## passing_horiz-1band-top-edge
+
+**Display name:** passing horiz-1band-top-edge  
+**Family:** passing  
+**Class id:** `passing_horiz-1band-top-edge`
+
+SKILL: passing_horiz-1band-top-edge
+Pattern Summary
+An 11×11 mostly-fail (*) shmoo grid with a passing band at the top edge (rows 0-1) and an all-fail body below. The top band consists of row 0 (mostly all-pass) and row 1 (transition row with a mix of A and *). Below the band, rows 2-10 are almost entirely fail with sparse occasional As. Row 2 may retain some As at the left/right edges (cols 0-2 and 8-10) but cols 3-7 are always *. Scattered single-A noise appears in rows 3-6, 10 at low probability. Rows 7-9 are always all-fail.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Defect Placement Rules
+Row 0 — Top Row (mostly all-pass)
+All A in ~55% of samples
+When stars present (~45%): 1-2 stars at random cols
+Col probabilities: all cols ~96-100% A
+Average A count: ~10.8
+Row 1 — Transition Row
+All A in ~55% of samples (no stars)
+When stars present (~45%): 3-8 stars scattered
+Star count distribution when present:
+3 stars: ~9%
+4 stars: ~9%
+5 stars: ~18%
+6 stars: ~27%
+7 stars: ~14%
+8 stars: ~23%
+All columns have ~63-90% A probability
+Average A count: ~8.3
+Row 2 — Heavy Transition
+Cols 3-7: always * (0% A)
+Cols 0-2: ~35-41% chance of A each
+Cols 8-10: ~33-39% chance of A each
+~51% of samples have row 2 = all *
+Average A count: ~2.2
+Row 3 — Decay Row
+All * in ~80% of samples
+When As present (~20%): 1-3 As at edge cols (0, 1, 9, 10)
+Cols 2-8: always *
+Average A count: ~0.4
+Rows 4-6 — Sparse Noise
+Each row is all * in ~86-92% of samples
+When A present: always exactly 1 A
+```text
+Row 4: col 0 (~10%) or col 10 (~4%)
+Row 5: col 0 (~8%) or col 10 (~6%)
+Row 6: col 10 only (~8%)
+```
+Rows 7-9 — Always All-Fail
+Always ***********
+No variation
+Row 10 — Bottom Noise
+All * in ~80% of samples
+When A present (~20%): exactly 1 A at center cols (3-6)
+Col 3: ~2%, Col 4: ~4%, Col 5: ~8%, Col 6: ~6%
+This represents isolated noise far from the passing band
+Three Structural Groups
+Group A (~18%): Row 0 has stars
+```text
+Row 0: 1-2 random stars in cols 0-10, rest A
+Row 1: 3-8 stars scattered
+Row 2: mostly *, some edge As
+```
+Rows 3+: mostly all * with sparse noise
+Group B (~27%): Row 0 clean, Row 1 has stars
+```text
+Row 0: AAAAAAAAAAA
+Row 1: 3-8 stars scattered
+Row 2: mostly *, some edge As
+```
+Rows 3+: mostly all * with sparse noise
+Group C (~55%): Rows 0-1 both clean
+```text
+Row 0: AAAAAAAAAAA
+Row 1: AAAAAAAAAAA
+Row 2: edge As at cols 0-2, 8-10 (more common than Groups A/B)
+Row 3: occasional 1-3 As at edges
+```
+Rows 4+: mostly all * with sparse noise
+Star Budget
+```text
+Row 0: 0-2 stars (avg ~0.2)
+Row 1: 0-8 stars (avg ~2.7)
+Row 2: 5-11 stars (avg ~8.8)
+```
+Rows 3-10: 10-11 stars each (avg ~10.8 each)
+Total per sample: ~97-110 stars (avg ~104)
+Generation Algorithm
+1. Create 11×11 grid of all '*'
+2. Pick structural group:
+   - Group A (18%): row 0 has stars
+   - Group B (27%): row 0 clean, row 1 has stars
+   - Group C (55%): rows 0-1 both clean
+3. ROW 0:
+   - Group A: set all to 'A', then place 1-2 stars at random cols
+   - Groups B,C: set to 'AAAAAAAAAAA'
+4. ROW 1:
+   - Groups A,B: set all to 'A', then place stars
+     count from {3:9%, 4:9%, 5:18%, 6:27%, 7:14%, 8:23%} at random cols
+   - Group C: set to 'AAAAAAAAAAA'
+5. ROW 2:
+   - Cols 3-7: always '*'
+   - Cols 0-2: each ~37% chance 'A'
+   - Cols 8-10: each ~35% chance 'A'
+6. ROW 3 (optional, ~20%):
+   - Place 1-3 'A's at random edge cols from {0, 1, 9, 10}
+7. NOISE — Rows 4-6 (each ~10-14% chance):
+   - Place 1 'A' at col 0 or col 10
+8. ROW 10 NOISE (~20% chance):
+   - Place 1 'A' at random col from {3, 4, 5, 6}
+     with weights {1, 2, 4, 3}
+9. Rows 7-9: always all '*'
+10. Join rows with '_' separator
+Visual Example
+```text
+AAAAAAAAAAA    ← row 0 (all pass — Group C)
+AAAAAAAAAAA    ← row 1 (all pass — Group C)
+AAA*****AAA    ← row 2 (edge A's, cols 3-7 always *)
+***********    ← row 3 (all fail)
+***********    ← row 4
+***********    ← row 5
+***********    ← row 6
+***********    ← row 7
+***********    ← row 8
+***********    ← row 9
+*****A*****    ← row 10 (noise A at col 5)
+AAA*AAAAAAA    ← row 0 (Group A, 1 star)
+***A*AAAAAA    ← row 1 (6 stars)
+***********    ← row 2 (all fail)
+***********    ← rows 3-10
+...
+**********A    ← row 6 (noise)
+***********
+***********
+***********
+***********    ← row 10 (clean)
+```
+
+### Distinguishing Features
+
+vs passing_horiz-1row-Ledge / Redge: Those classes have a single passing column (L or R edge) running the full grid height. This class has a horizontal passing band at the top, not a vertical edge strip.
+vs passing_horiz-1band-bot-edge (if exists): Would be the flipud mirror with the passing band at the bottom.
+vs passing_corner-*: Corner classes have a triangular passing region. This class has a flat horizontal band with no vertical extent.
+The "1band" designation indicates one horizontal passing band.
+The "top-edge" designation places the band at rows 0-1.
+Row 10 noise A appears at center columns, unlike rows 4-6 noise which appears at edge columns.
+
+---
+
+## passing_horiz-1row-Ledge
+
+**Display name:** passing horiz-1row-Ledge  
+**Family:** passing  
+**Class id:** `passing_horiz-1row-Ledge`
+
+SKILL: passing_horiz-1row-Ledge
+Pattern Summary
+An 11×11 mostly-fail (*) shmoo grid with a single horizontal passing row along the left edge (col 0 is always A). The passing region forms a narrow "L-edge" shape: col 0 is pass across all 11 rows, while the top rows (0-3) have a gradual transition from mostly-pass (row 0) to mostly-fail (row 3). Rows 4-10 are always A********** (only col 0 passes). The pattern represents a device that passes only a narrow horizontal strip at the left edge, with a soft decaying top border.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Structural Invariants
+Col 0 is always A in every row (100%)
+Rows 4-10 are always A********** (col 0 pass, cols 1-10 fail)
+All variation occurs in rows 0-3 only
+Defect Placement Rules
+Row 0 — Top Row (mostly all-pass)
+All A in ~78% of samples
+When stars present (~22%): 1-2 stars at random cols 1-10
+Col 0 is always A
+Average A count: ~10.7
+Row 1 — Transition Row
+All A in ~42% of samples (no stars)
+When stars present (~58%): 3-8 stars scattered across cols 1-10
+Star count distribution when present:
+3 stars: ~9%
+4 stars: ~13%
+5 stars: ~13%
+6 stars: ~43%
+7 stars: ~4%
+8 stars: ~17%
+Col 0 always A; cols 1-10 have ~30-45% star probability each
+Average A count: ~7.7
+Row 2 — Heavy Transition
+Always has stars (cols 3-7 are always *)
+Col 0: always A
+Cols 1-2: ~28-30% chance of A
+Cols 3-7: always * (0% A)
+Cols 8-10: ~25-32% chance of A
+Star count: 5-10 (avg ~8.5)
+Average A count: ~2.5
+Row 3 — Nearly All-Fail
+Col 0: always A
+Cols 1-10: mostly *; occasional A at edges (cols 1, 8-10)
+Col 1: ~5% chance A
+Cols 8-10: ~2-12% chance A
+Cols 2-7: always * (0%)
+Star count: 8-10 (avg ~9.7)
+Average A count: ~1.3
+Rows 4-10 — Solid Fail Body
+Always A**********
+No variation
+Three Structural Groups
+Group A (~22%): Row 0 has stars
+```text
+Row 0: 1-2 random stars in cols 1-10, rest A
+Row 1: 3-8 stars scattered in cols 1-10
+Row 2: dense stars, cols 3-7 always *, some A at edges
+Row 3: A**********
+```
+Group B (~35%): Row 0 clean, Row 1 has stars
+```text
+Row 0: AAAAAAAAAAA
+Row 1: 3-8 stars scattered in cols 1-10
+Row 2: dense stars, similar to Group A
+Row 3: A**********
+```
+Group C (~43%): Rows 0-1 both clean
+```text
+Row 0: AAAAAAAAAAA
+Row 1: AAAAAAAAAAA
+Row 2: 5-10 stars with possible As at cols 1-2 and 8-10
+Row 3: mostly A**********, occasionally 1-2 extra As at cols 1, 8-10
+```
+Star Budget
+Rows 4-10: always 10 stars each = 70 stars
+```text
+Row 3: 8-10 stars (avg ~9.7)
+Row 2: 5-10 stars (avg ~8.5)
+Row 1: 0-8 stars (avg ~3.3)
+Row 0: 0-2 stars (avg ~0.3)
+```
+Total per sample: ~83-92 stars (avg ~86)
+Generation Algorithm
+1. Create 11×11 grid of all '*'
+2. Set col 0 to 'A' for ALL rows
+3. Set rows 4-10 to 'A**********' (already done by steps 1-2)
+4. Pick structural group:
+   - Group A (22%): row 0 has stars
+   - Group B (35%): row 0 clean, row 1 has stars
+   - Group C (43%): rows 0-1 both clean
+5. ROW 0:
+   - Group A: set all cols to 'A', then place 1-2 stars at random cols in 1-10
+   - Groups B,C: set entire row to 'AAAAAAAAAAA'
+6. ROW 1:
+   - Groups A,B: pick star count from {3:9%, 4:13%, 5:13%, 6:43%, 7:4%, 8:17%}
+     Place stars at random cols in 1-10
+   - Group C: set entire row to 'AAAAAAAAAAA'
+7. ROW 2:
+   - Cols 3-7: always '*'
+   - Cols 1-2: each ~30% chance of 'A'
+   - Cols 8-10: each ~28% chance of 'A'
+   - (Group C tends to have more 'A's at edges than Groups A,B)
+8. ROW 3:
+   - Default: 'A**********'
+   - Group C only (~40% of Group C): place 1-2 'A's at random
+     positions in cols {1, 8, 9, 10}
+9. Join rows with '_' separator
+Visual Example
+```text
+AAAAAAAAAAA    ← row 0 (all pass — Group B/C)
+A****AAA**A    ← row 1 (transition, 6 stars)
+A*****A****    ← row 2 (heavy transition, cols 3-7 always *)
+A**********    ← row 3 (nearly all fail)
+A**********    ← rows 4-10 (solid fail, col 0 pass)
+A**********
+A**********
+A**********
+A**********
+A**********
+A**********
+AAA*AAAAAAA    ← row 0 (Group A, 1 star at col 3)
+AA*A*******    ← row 1 (8 stars)
+A**********    ← row 2 (all fail except col 0)
+A**********    ← row 3
+A**********    ← rows 4-10
+...
+```
+
+### Distinguishing Features
+
+vs passing_horiz-1row-Redge: Mirror image — Redge has col 10 always pass and the transition extends rightward instead of leftward.
+vs passing_corner-lower-left: The corner class has a triangular passing region growing toward the bottom-left. This class has a flat single-column left edge with only a top-border decay.
+vs crack_horiz-*: Crack classes have fail bands within a mostly-pass grid. This is the inverse: a mostly-fail grid with a narrow pass strip at the left edge.
+The "1row" designation indicates only col 0 fully passes across all rows.
+The "Ledge" designation indicates the left-edge placement.
+
+---
+
+## passing_horiz-2row-top-bot
+
+**Display name:** passing horiz-2row-top-bot  
+**Family:** passing  
+**Class id:** `passing_horiz-2row-top-bot`
+
+SKILL: passing_horiz-2row-top-bot
+Pattern Summary
+An 11×11 mostly-fail (*) shmoo grid with two passing rows — one at the top (row 0) and one at the bottom (row 10). Both are always all-A. Transition rows (row 1 near the top, row 9 near the bottom) carry a variable mix of A and *. Row 2 may retain sparse edge As (cols 0-2, 8-10 only; center cols 3-7 always *). The interior (rows 3-8) is almost entirely all-fail with rare single-A noise at col 0 or col 10. Rows 7-8 are always all-fail.
+
+The top and bottom bands are independently generated — each half can be clean, partially starred, or fully starred regardless of the other.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Defect Placement Rules
+Row 0 — Top Edge (almost always all-A)
+All A in ~94% of samples
+When stars present (~6%): 1-4 stars at random cols
+Average A count: ~10.9
+Row 10 — Bottom Edge (always all-A)
+Always AAAAAAAAAAA (100%)
+Row 1 — Top Transition
+All A in ~41% of samples
+All * in ~12% of samples (no A at all)
+Mixed in ~47%: 2-8 As scattered
+Star count distribution:
+0 stars: 41%, 3: 2%, 5: 6%, 6: 6%, 7: 8%, 8: 12%, 9: 4%, 10: 10%, 11: 12%
+All columns ~49-76% A probability
+Average A count: ~6.2
+Row 9 — Bottom Transition
+All A in ~37% of samples
+All * in ~14% of samples
+Mixed in ~49%: 1-8 As scattered
+Star count distribution:
+0 stars: 37%, 1: 22%, 3: 8%, 8: 6%, 9: 8%, 10: 6%, 11: 14%
+All columns ~59-80% A probability
+Average A count: ~7.3
+Row 2 — Top Decay (sparse edge A)
+All * in ~73% of samples
+When A present (~27%): 1-6 As at edge cols only
+Cols 0-2: each ~12-18% chance of A
+Cols 3-7: always *
+Cols 8-10: each ~12-18% chance of A
+Average A count: ~0.8
+Rows 3-6 — Interior Noise
+Each row is all * in ~92-98% of samples
+When A present: exactly 1 A
+```text
+Row 3: col 0 only (~4%)
+Row 4: col 0 (~6%) or col 10 (~6%)
+Row 5: col 0 (~2%) or col 10 (~4%)
+Row 6: col 10 only (~2%)
+```
+Rows 7-8 — Always All-Fail
+Always ***********
+No variation
+Structural Groups (Top × Bottom)
+The top band (rows 0-1) and bottom band (rows 9-10) are generated independently. Each band falls into one of three categories:
+
+Top Band Categories
+T-clean (~41%): Row 0 = all A, Row 1 = all A
+T-mixed (~53%): Row 0 = all A, Row 1 = mix of A and *
+T-star (~6%): Row 0 has 1-4 stars, Row 1 has stars
+Bottom Band Categories
+B-clean (~37%): Row 10 = all A, Row 9 = all A
+B-mixed (~49%): Row 10 = all A, Row 9 = mix of A and *
+B-empty (~14%): Row 10 = all A, Row 9 = all *
+Any top category can pair with any bottom category.
+
+Star Budget
+```text
+Row 0: 0-4 stars (avg ~0.1)
+Row 1: 0-11 stars (avg ~4.8)
+Row 2: 0-5 stars (avg ~0.8, only edge cols)
+```
+Rows 3-6: 10-11 stars each
+Rows 7-8: always 11 stars each
+```text
+Row 9: 0-11 stars (avg ~3.7)
+Row 10: always 0 stars
+```
+Total per sample: ~87-110 (avg ~99)
+Generation Algorithm
+1. Create 11×11 grid of all '*'
+2. ROW 0: set to 'AAAAAAAAAAA'
+   - ~6% chance: place 1-4 stars at random cols
+3. ROW 10: set to 'AAAAAAAAAAA' (always)
+4. ROW 1 (top transition):
+   - 41% chance: all 'A' (clean)
+   - 12% chance: all '*' (empty)
+   - 47% chance: set all 'A', then place stars
+     count from {3:2%, 5:6%, 6:6%, 7:8%, 8:12%, 9:4%, 10:10%}
+     at random cols
+5. ROW 9 (bottom transition):
+   - 37% chance: all 'A' (clean)
+   - 14% chance: all '*' (empty)
+   - 49% chance: set all 'A', then place stars
+     count from {1:22%, 3:8%, 8:6%, 9:8%, 10:6%}
+     (remaining probability → uniform pick from available)
+6. ROW 2 (optional, ~27%):
+   - Cols 3-7: always '*'
+   - Cols 0-2: each ~15% chance 'A'
+   - Cols 8-10: each ~15% chance 'A'
+   - Ensure at least 1 'A' if row 2 is activated
+7. NOISE — Rows 3-6 (each ~2-6% chance):
+   - Row 3: 1 'A' at col 0
+   - Row 4: 1 'A' at col 0 or col 10 (equal)
+   - Row 5: 1 'A' at col 0 or col 10 (slight col 10 bias)
+   - Row 6: 1 'A' at col 10
+8. Rows 7-8: always all '*'
+9. Join rows with '_' separator
+Visual Example
+```text
+AAAAAAAAAAA    ← row 0 (always all-A)
+AAAAAAAAAAA    ← row 1 (clean — T-clean)
+***********    ← row 2
+***********    ← row 3
+***********    ← row 4
+***********    ← row 5
+***********    ← row 6
+***********    ← row 7
+***********    ← row 8
+AAAAAAAAAAA    ← row 9 (clean — B-clean)
+AAAAAAAAAAA    ← row 10 (always all-A)
+AAAAAAAAAAA    ← row 0
+A**AAA*AA**    ← row 1 (T-mixed, 5 stars)
+AA*****A*A     ← row 2 (edge A's)
+***********    ← row 3
+A**********    ← row 4 (noise at col 0)
+***********    ← row 5
+***********    ← row 6
+***********    ← row 7
+***********    ← row 8
+***********    ← row 9 (B-empty)
+AAAAAAAAAAA    ← row 10
+```
+
+### Distinguishing Features
+
+vs passing_horiz-1band-top: Has only one passing band at the top. This class has two bands — one top, one bottom — separated by a wide fail region.
+vs passing_horiz-1band-bot: Has only one passing band at the bottom.
+vs passing_horiz-2row-top-bot variants (vert): Rotated 90° versions would have vertical passing columns at left and right edges.
+Row 0 and Row 10 are the anchor rows (always or nearly always all-A).
+The pattern is roughly vertically symmetric but not exactly — the top and bottom transition rows (1 and 9) are generated independently with slightly different distributions.
+Row 10 is always all-A (no stars ever), while Row 0 occasionally has stars (~6%).
+
+---
+
+# Family: speckles
+
+## speckles_curve-BL-to-UR-noisy
+
+**Display name:** speckles curve-BL-to-UR-noisy  
+**Family:** speckles  
+**Class id:** `speckles_curve-BL-to-UR-noisy`
+
+SKILL: speckles_curve-BL-to-UR-noisy
+Pattern Summary
+An 11×11 shmoo grid with a gradual curve boundary running from the bottom-left to the upper-right, identical in shape to speckles_curve-BL-to-UR-tight, but with additional noise injected into solid pass regions. Every non-overlapping 3×3 tile that is entirely A receives exactly one randomly placed *, breaking up large solid blocks while preserving the overall curve structure.
+
+The result is a pattern that retains the BL-to-UR curve but has scattered fail-pixels inside the pass region — giving it a visibly noisier, more speckled appearance compared to the tight variant.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+
+### Key Constraints
+
+Base curve follows tight variant rules (max leading-A jump ≤ 3, boundary speckles < 15)
+3×3 noise injection: For each non-overlapping 3×3 tile at positions (row, col) ∈ {(0,0), (0,3), (0,6), (3,0), (3,3), (3,6), (6,0), (6,3), (6,6)}, if all 9 cells are A, flip exactly one random cell to *
+Rows 9–10 and cols 9–10 are not covered by 3×3 tiles (11 mod 3 ≠ 0), so they retain their original values
+Noise Tile Positions and Frequency
+| Tile (row,col) | Covers | Noise Frequency |
+| --- | --- | --- |
+| (0,0) | r0–r2, c0–c2 | ~32% |
+| (0,3) | r0–r2, c3–c5 | ~0% |
+| (0,6) | r0–r2, c6–c8 | ~0% |
+| (3,0) | r3–r5, c0–c2 | ~80% |
+| (3,3) | r3–r5, c3–c5 | ~1% |
+| (3,6) | r3–r5, c6–c8 | ~0% |
+| (6,0) | r6–r8, c0–c2 | ~100% |
+| (6,3) | r6–r8, c3–c5 | ~93% |
+| (6,6) | r6–r8, c6–c8 | ~15% |
+
+Tiles in the upper-right (fail region) are rarely all-A, so noise is seldom injected there.
+Tiles in the lower-left (pass region) are frequently all-A, so noise appears most often there — especially tiles (6,0) and (6,3).
+Average noise tiles per sample: ~3.2 (range 1–6).
+P(A) Probability Matrix (row × col)
+        c0    c1    c2    c3    c4    c5    c6    c7    c8    c9    c10
+r 0:  0.93  0.50  0.30  0.16  0.09  0.12  0.05  0.07  0.01  0.01  0.04
+r 1:  0.96  0.62  0.39  0.24  0.23  0.18  0.15  0.05  0.08  0.05  0.00
+r 2:  0.99  0.77  0.57  0.39  0.16  0.26  0.18  0.11  0.12  0.05  0.01
+r 3:  0.93  0.78  0.61  0.51  0.30  0.22  0.19  0.20  0.09  0.05  0.08
+r 4:  0.95  0.97  0.78  0.55  0.28  0.22  0.14  0.14  0.05  0.03  0.03
+r 5:  0.91  0.89  0.86  0.88  0.65  0.26  0.12  0.15  0.19  0.07  0.04
+r 6:  0.91  0.88  0.84  0.92  0.80  0.89  0.53  0.26  0.08  0.14  0.09
+r 7:  0.89  0.91  0.93  0.86  0.95  0.82  0.84  0.69  0.46  0.24  0.14
+r 8:  0.86  0.89  0.89  0.86  0.95  0.85  0.96  0.92  0.73  0.58  0.42
+r 9:  1.00  1.00  0.99  0.95  0.96  0.97  0.96  0.96  0.86  0.72  0.65
+r10:  1.00  1.00  1.00  1.00  1.00  1.00  1.00  1.00  0.97  0.88  0.80
+Key differences from tight variant: - Cols 0–2 in rows 0–8 drop from 1.00 to 0.86–0.99 due to noise in tiles (0,0), (3,0), and (6,0) - Cols 3–5 in rows 6–8 drop from ~0.90+ to ~0.82–0.92 due to tile (6,3) noise - Rows 9–10 are unchanged (not covered by tiles)
+
+Per-Row Leading-A Statistics (after noise)
+| Row | Min | Max | Avg | Notes |
+| --- | --- | --- | --- | --- |
+| 0 | 0 | 4 | 1.5 | Can be 0 when tile (0,0) hits col 0 |
+| 1 | 0 | 4 | 1.9 |  |
+| 2 | 0 | 5 | 2.5 |  |
+| 3 | 0 | 6 | 2.4 | tile (3,0) frequently breaks leading A |
+| 4 | 0 | 6 | 3.3 |  |
+| 5 | 0 | 8 | 3.3 |  |
+| 6 | 0 | 8 | 4.0 | tile (6,0) always injects noise |
+| 7 | 0 | 11 | 5.4 |  |
+| 8 | 0 | 11 | 5.4 |  |
+| 9 | 2 | 11 | 9.0 | Not covered by tiles — retains tight stats |
+| 10 | 8 | 11 | 10.6 | Not covered by tiles — retains tight stats |
+
+Note: Leading-A can drop to 0 because the noise * can land at col 0 within a tile, breaking the contiguous A run from col 0. This is a key distinguishing feature vs the tight variant where col 0 is always A.
+
+Star Budget
+Total stars per sample: 41–72 (avg ~55.4)
+Total per sample (tight): 35–84 (avg ~57)
+Noise adds ~3.2 extra stars on average (one per noise tile triggered)
+Pass density slightly lower than tight due to noise injection
+Generation Algorithm
+1. Generate a base speckles_curve-BL-to-UR-tight sample:
+   a. Create 11×11 grid of all '*'
+   b. For each row ri = 0..10, determine leading-A count:
+      - Row 0: sample from {1:54%, 2:23%, 3:15%, 4:8%}
+      - Row ri (ri>0): sample increment from tight variant distribution
+      - Clamp: max jump ≤ 3, leading_A in [1, 11]
+   c. Set cols 0..leading_A-1 to 'A'
+   d. For rows 0–9, add speckles beyond boundary (< 15 total)
+      using tight variant speckle distributions
+
+2. Apply 3×3 noise injection:
+   a. Scan 9 non-overlapping 3×3 tiles:
+      (0,0), (0,3), (0,6), (3,0), (3,3), (3,6), (6,0), (6,3), (6,6)
+   b. For each tile where all 9 cells are 'A':
+      - Pick one random cell (dr, dc) ∈ {0,1,2} × {0,1,2}
+      - Set grid[tr+dr][tc+dc] = '*'
+
+3. Join rows with '_' separator
+
+### Visual Examples
+
+Example 1 (base had large pass region)
+Tight base:                    After noise:
+```text
+AAAAAAAAAAA  ← r0              AAAAAAAAAAA  ← no change (tile not all-A)
+AAAAAAAA***  ← r1              AAAAAAAA***
+AAAAAAA****  ← r2              AAAAAAA****
+...                            ...
+AAAAAAAAAAA  ← r6              AA*AAAAAAAA  ← tile(6,0) noise at (6,2)
+AAAAAAAAAAA  ← r7              AAAA*AAAAAA  ← tile(6,3) noise at (7,4)
+AAAAAAAAAAA  ← r8              AAAAAAAAA*A  ← tile(6,6) noise at (8,9)
+```
+Example 2 (S05254)
+A······A···    ← r0  noise may break leading A
+A···A······    ← r1
+A·········A    ← r2
+A·A·A···A··    ← r3
+AA·····A···    ← r4
+AAAAA······    ← r5
+·AA·AAA····    ← r6  tile(6,0) broke col 0
+AAAAAAAAA··    ← r7
+AAAAAAA·AAA    ← r8  tile(6,6) noise
+```text
+AAAAAAAAAAA    ← r9  unchanged (not tiled)
+AAAAAAAAAAA    ← r10 unchanged (not tiled)
+```
+Example 3 (S05297)
+AAAA·······    ← r0
+AAAA·······    ← r1
+A·AA·A···A·    ← r2  tile(0,0) noise at (2,1)
+AAAAA······    ← r3
+·AAAA·A····    ← r4  tile(3,0) noise at (4,0)
+AAAAA····A·    ← r5
+AA·AAA·A···    ← r6  tile(6,0) noise at (6,2)
+AAA·AA·····    ← r7  tile(6,3) noise at (7,3)
+AAAAAAA··A·    ← r8
+AAAAAAAA···    ← r9
+AAAAAAAAA··    ← r10
+
+### Distinguishing Features
+
+vs speckles_curve-BL-to-UR-tight: Tight has no noise in the pass region — all * within the pass area are original boundary speckles. Noisy has additional fail-pixels injected into solid 3×3 A blocks, giving a visibly rougher pass region. Col 0 is no longer guaranteed A in noisy (can be * in ~7–14% of rows 0–8).
+vs speckles_curve-BL-to-UR-steep: Steep has abrupt leading-A jumps ≥ 4. Noisy preserves the gradual curve (max jump ≤ 3) but adds internal noise.
+vs other curve directions: This class has the curve from BL to UR; others anchor to different corners.
+Noise is structured, not random: Only non-overlapping 3×3 all-A tiles get noise — exactly 1 * per qualifying tile. This creates a distinctive pattern where noise appears in a semi-regular grid layout (every 3rd row/col) within the pass region.
+Rows 9–10 and cols 9–10 are never affected by noise.
+
+---
+
+## speckles_curve-BL-to-UR-tight
+
+**Display name:** speckles curve-BL-to-UR-tight  
+**Family:** speckles  
+**Class id:** `speckles_curve-BL-to-UR-tight`
+
+SKILL: speckles_curve-BL-to-UR-tight
+Pattern Summary
+An 11×11 shmoo grid with a gradual curve boundary running from the bottom-left to the upper-right. The pass region (A) is anchored in the lower-left corner and grows smoothly — leading-A (contiguous from col 0) increases row-by-row from top to bottom with a max single-row increment ≤ 3. Scattered speckle As appear beyond the leading boundary but are sparse (< 15 total speckles per sample, avg ~5.8). The bottom rows are nearly solid pass; the top rows are mostly fail with occasional isolated As.
+
+This is the tight (gradual/smooth) variant of speckles_curve-BL-to-UR.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+
+### Key Constraints
+
+Max leading-A jump between consecutive rows ≤ 3
+Total speckles (A beyond leading block) < 15 per sample
+Per-Row Leading-A Statistics
+| Row | Min | Max | Mean | StDev | Distribution |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 1 | 4 | 1.8 | 0.98 | {1:54%, 2:23%, 3:15%, 4:8%} |
+| 1 | 1 | 4 | 1.8 | 0.98 | {1:49%, 2:28%, 3:14%, 4:9%} |
+| 2 | 1 | 5 | 2.4 | 1.18 | {1:26%, 2:33%, 3:15%, 4:24%, 5:2%} |
+| 3 | 1 | 6 | 2.6 | 1.36 | {1:27%, 2:27%, 3:17%, 4:20%, 5:7%, 6:2%} |
+| 4 | 1 | 6 | 3.2 | 1.28 | {1:9%, 2:23%, 3:32%, 4:18%, 5:15%, 6:3%} |
+| 5 | 1 | 8 | 4.2 | 1.34 | {1:2%, 2:8%, 3:22%, 4:27%, 5:27%, 6:11%, 7:2%, 8:1%} |
+| 6 | 2 | 10 | 5.9 | 1.55 | {2:2%, 3:5%, 4:10%, 5:16%, 6:30%, 7:23%, 8:10%, 9:2%, 10:1%} |
+| 7 | 3 | 11 | 7.6 | 1.91 | {3:2%, 4:2%, 5:12%, 6:12%, 7:15%, 8:23%, 9:21%, 10:4%, 11:9%} |
+| 8 | 4 | 11 | 9.0 | 1.82 | {4:1%, 5:2%, 6:10%, 7:7%, 8:18%, 9:17%, 10:15%, 11:29%} |
+| 9 | 5 | 11 | 9.7 | 1.47 | {5:1%, 6:2%, 7:3%, 8:15%, 9:20%, 10:11%, 11:48%} |
+| 10 | 6 | 11 | 10.4 | 1.11 | {6:1%, 8:9%, 9:12%, 10:8%, 11:71%} |
+
+Row-to-Row Leading-A Increments
+| Transition | Min | Max | Mean | Distribution |
+| --- | --- | --- | --- | --- |
+| r0→r1 | -1 | 1 | 0.07 | {-1:7%, 0:80%, 1:13%} |
+| r1→r2 | -1 | 3 | 0.61 | {-1:3%, 0:45%, 1:42%, 2:8%, 3:2%} |
+| r2→r3 | -2 | 3 | 0.14 | {-2:1%, -1:14%, 0:61%, 1:18%, 2:4%, 3:1%} |
+| r3→r4 | -1 | 2 | 0.61 | {-1:9%, 0:33%, 1:48%, 2:11%} |
+| r4→r5 | -1 | 3 | 0.98 | {-1:3%, 0:27%, 1:43%, 2:21%, 3:5%} |
+| r5→r6 | 0 | 3 | 1.76 | {0:8%, 1:36%, 2:29%, 3:27%} |
+| r6→r7 | -1 | 3 | 1.68 | {-1:1%, 0:14%, 1:25%, 2:35%, 3:25%} |
+| r7→r8 | -2 | 3 | 1.38 | {-2:1%, -1:2%, 0:14%, 1:33%, 2:40%, 3:10%} |
+| r8→r9 | -2 | 3 | 0.75 | {-2:2%, -1:4%, 0:43%, 1:27%, 2:12%, 3:11%} |
+| r9→r10 | -1 | 3 | 0.63 | {-1:1%, 0:68%, 1:8%, 2:12%, 3:11%} |
+
+P(A) Probability Matrix (row × col)
+        c0    c1    c2    c3    c4    c5    c6    c7    c8    c9    c10
+r 0:  1.00  0.46  0.26  0.16  0.10  0.12  0.05  0.05  0.01  0.02  0.04
+r 1:  1.00  0.51  0.37  0.24  0.18  0.10  0.11  0.07  0.07  0.04  0.01
+r 2:  1.00  0.74  0.45  0.37  0.14  0.17  0.16  0.12  0.11  0.05  0.01
+r 3:  1.00  0.73  0.53  0.40  0.29  0.24  0.13  0.20  0.09  0.07  0.07
+r 4:  1.00  0.91  0.70  0.38  0.25  0.17  0.14  0.11  0.07  0.03  0.03
+r 5:  1.00  0.98  0.90  0.70  0.47  0.25  0.12  0.12  0.16  0.08  0.05
+r 6:  1.00  1.00  0.98  0.92  0.84  0.73  0.40  0.23  0.09  0.16  0.10
+r 7:  1.00  1.00  1.00  0.98  0.96  0.86  0.73  0.60  0.38  0.24  0.14
+r 8:  1.00  1.00  1.00  1.00  0.99  0.97  0.87  0.83  0.62  0.50  0.38
+r 9:  1.00  1.00  1.00  1.00  1.00  0.99  0.97  0.93  0.78  0.60  0.57
+r10:  1.00  1.00  1.00  1.00  1.00  1.00  0.99  0.99  0.90  0.78  0.71
+Speckle Behavior
+Speckles per row: 0–3 (avg 0.1–1.2 depending on row)
+Total speckles per sample: 2–11 (avg ~5.8)
+```text
+Row 10: Never has speckles (always 0)
+```
+Rows 0–3: Highest speckle rate (~0.5–1.2 avg per row)
+Rows 7–10: Lowest speckle rate (~0.0–0.3 avg per row)
+Speckle offset from boundary: Most land 1–4 cols beyond the leading-A edge; drops off sharply beyond offset 5. Distribution:
+offset 1: 24%, offset 2: 21%, offset 3: 19%, offset 4: 15%, offset 5: 10%, offset 6: 6%, offset 7: 2%, offset 8: 1%, offset 9: <1%
+Per-Row Speckle Count Distribution
+| Row | 0 spk | 1 spk | 2 spk | 3 spk | Avg |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 49% | 50% | 1% | — | 0.52 |
+| 1 | 41% | 33% | 24% | 2% | 0.87 |
+| 2 | 30% | 53% | 13% | 3% | 0.89 |
+| 3 | 27% | 36% | 30% | 7% | 1.16 |
+| 4 | 42% | 54% | 3% | — | 0.61 |
+| 5 | 42% | 49% | 9% | — | 0.66 |
+| 6 | 55% | 37% | 8% | — | 0.52 |
+| 7 | 74% | 25% | 1% | — | 0.27 |
+| 8 | 86% | 12% | 2% | — | 0.16 |
+| 9 | 91% | 8% | 1% | — | 0.10 |
+| 10 | 100% | — | — | — | 0.00 |
+
+Star Budget
+```text
+Row 0: 6–10 stars (avg ~8.7)
+Row 1: 5–10 stars (avg ~8.3)
+Row 2: 5–10 stars (avg ~7.7)
+Row 3: 4–10 stars (avg ~7.3)
+Row 4: 4–10 stars (avg ~7.2)
+Row 5: 3–10 stars (avg ~6.2)
+Row 6: 1–9 stars (avg ~4.6)
+Row 7: 0–7 stars (avg ~3.1)
+Row 8: 0–7 stars (avg ~1.8)
+Row 9: 0–6 stars (avg ~1.2)
+Row 10: 0–5 stars (avg ~0.6)
+```
+Total per sample: ~35–84 (avg ~57)
+Overall density: 0.31–0.71 (avg ~0.53)
+Generation Algorithm
+1. Create 11×11 grid of all '*'
+2. For each row ri = 0..10, determine leading-A count:
+   a. Row 0: sample from {1:54%, 2:23%, 3:15%, 4:8%}
+   b. Row ri (ri>0): sample increment from row-specific distribution
+      - Clamp increment to [-2, 3] (max jump constraint)
+      - Ensure leading_A ≥ 1 and ≤ 11
+      - Ensure leading_A ≥ previous row's leading_A - 2 (near-monotonic)
+   c. Set cols 0..leading_A-1 to 'A'
+3. For each row ri = 0..9, add speckles beyond boundary:
+   a. Sample speckle count from row-specific distribution:
+      - Row 0: {0:49%, 1:50%, 2:1%}
+      - Row 1: {0:41%, 1:33%, 2:24%, 3:2%}
+      - Row 2: {0:30%, 1:53%, 2:13%, 3:3%}
+      - Row 3: {0:27%, 1:36%, 2:30%, 3:7%}
+      - Row 4: {0:42%, 1:54%, 2:3%}
+      - Row 5: {0:42%, 1:49%, 2:9%}
+      - Row 6: {0:55%, 1:37%, 2:8%}
+      - Row 7: {0:74%, 1:25%, 2:1%}
+      - Row 8: {0:86%, 1:12%, 2:2%}
+      - Row 9: {0:91%, 1:8%, 2:1%}
+   b. Place speckle A's at random positions beyond the leading block
+      - Weight by offset: offset 1 (24%), 2 (21%), 3 (19%), 4 (15%),
+        5 (10%), 6 (6%), 7 (2%), 8 (1%), 9 (<1%)
+   c. Row 10: never add speckles
+4. Validate: total speckles < 15 and max leading-A jump ≤ 3
+   - If violated, regenerate the sample
+5. Join rows with '_' separator
+
+### Visual Examples
+
+A··········    ← r0  (leadA=1, 0 speckles)
+A···A······    ← r1  (leadA=1, 1 speckle)
+A·A··A·····    ← r2  (leadA=1, 2 speckles)
+A·A········    ← r3  (leadA=1, 1 speckle)
+AA···A·····    ← r4  (leadA=2, 1 speckle)
+AAAA·······    ← r5  (leadA=4, 0 speckles)
+AAAAAAAA···    ← r6  (leadA=8, 0 speckles)
+AAAAAAAAAA·    ← r7  (leadA=10, 0 speckles)
+```text
+AAAAAAAAAAA    ← r8  (leadA=11, 0 speckles)
+AAAAAAAAAAA    ← r9  (leadA=11, 0 speckles)
+AAAAAAAAAAA    ← r10 (leadA=11, 0 speckles)
+```
+AA·····A···    ← r0  (leadA=2, 1 speckle)
+AA·A·A·····    ← r1  (leadA=2, 2 speckles)
+AAAA·······    ← r2  (leadA=4, 0 speckles)
+AAA·A······    ← r3  (leadA=3, 1 speckle)
+AAAA···A···    ← r4  (leadA=4, 1 speckle)
+AAAAA···A··    ← r5  (leadA=5, 1 speckle)
+AAAAAAA····    ← r6  (leadA=7, 0 speckles)
+AAAAAAAAA··    ← r7  (leadA=9, 0 speckles)
+```text
+AAAAAAAAAAA    ← r8  (leadA=11, 0 speckles)
+AAAAAAAAAAA    ← r9  (leadA=11, 0 speckles)
+AAAAAAAAAAA    ← r10 (leadA=11, 0 speckles)
+```
+AAA········    ← r0  (leadA=3, 0 speckles)
+AAA·A······    ← r1  (leadA=3, 1 speckle)
+AAAA··A··A·    ← r2  (leadA=4, 2 speckles)
+AAAA·······    ← r3  (leadA=4, 0 speckles)
+AAAAA·A····    ← r4  (leadA=5, 1 speckle)
+AAAAAA·····    ← r5  (leadA=6, 0 speckles)
+AAAAAAAA···    ← r6  (leadA=8, 0 speckles)
+AAAAAAAAA··    ← r7  (leadA=9, 0 speckles)
+AAAAAAAAAA·    ← r8  (leadA=10, 0 speckles)
+```text
+AAAAAAAAAAA    ← r9  (leadA=11, 0 speckles)
+AAAAAAAAAAA    ← r10 (leadA=11, 0 speckles)
+```
+
+### Distinguishing Features
+
+vs speckles_curve-BL-to-UR-steep: Steep has abrupt leading-A jumps ≥ 4 in a single row transition. Tight never exceeds 3.
+vs speckles_curve-BL-to-UR-noisy: Noisy has ≥ 15 total speckles (heavy scattered A's beyond boundary). Tight has < 15 (avg ~5.8).
+vs other curve directions (BR-to-UL, UL-to-BR, UR-to-BL): This class has leading-A growing from col 0 (left side); other directions have the pass region anchored to different corners.
+The curve transition is smooth and gradual — visually the boundary appears as a gentle arc from bottom-left to upper-right.
+Col 0 is always A in every row (100%).
+Row 10 bottom rows are densely pass (71–100% per col).
+Row 0 top rows are sparse (only col 0 guaranteed A).
+
+---
+
+## speckles_inmarginal-curve
+
+**Display name:** speckles inmarginal-curve  
+**Family:** speckles  
+**Class id:** `speckles_inmarginal-curve`
+
+SKILL: speckles_inmarginal-curve
+Pattern Summary
+An 11×11 shmoo grid with a marginal pass region forming a curved boundary from the upper-left toward the lower-right. The pass region (A) is widest at row 0 (nearly all-A) and narrows gradually toward row 10, with the right side filled with trailing * (fail). Within the pass region, scattered speckle *s appear — especially in row 1, which has a distinctive heavy-speckle signature.
+
+The "inmarginal" designation means the speckles are inside the marginal (boundary) zone — the pass region itself is noisy with isolated fail pixels, and the overall curve traces a concave arc bowing inward.
+
+Grid Dimensions
+11 rows × 11 columns
+Characters: A (pass), * (fail)
+Row Structure
+Each row has two zones: 1. Pass region (left side): Mix of A and scattered * speckles 2. Trailing fail (right side): Contiguous * from the right edge
+
+[PASS_REGION with speckles] [TRAILING_*]
+The pass region width decreases from ~11 at row 0 to ~2–3 at row 10, forming the curve shape.
+
+### Key Constraints
+
+Col 0 is always A in rows 0–8 (100%), rows 9–10 at 92–98%
+Row 0 is nearly all-A: 90% of samples have row 0 = AAAAAAAAAAA
+Row 1 has heavy speckles: Col 1 is * in 81% of samples (signature)
+Pass width decreases monotonically (with minor local variation)
+Total speckles in pass region: 3–10 per sample (avg ~6.9)
+No A's appear in the trailing fail zone — the boundary is clean on the right
+Pass Region Width Per Row
+| Row | Min | Max | Avg | Common values |
+| --- | --- | --- | --- | --- |
+| 0 | 8 | 11 | 10.8 | 11 (90%), 9 (6%), 8 (4%) |
+| 1 | 6 | 11 | 9.3 | 11 (52%), 7 (23%), 8 (8%), 9 (10%) |
+| 2 | 4 | 11 | 8.2 | 6 (23%), 7 (25%), 11 (35%) |
+| 3 | 3 | 11 | 7.3 | 6 (31%), 5 (15%), 9 (15%), 11 (19%) |
+| 4 | 3 | 10 | 6.2 | 6 (48%), 4 (15%), 9 (10%) |
+| 5 | 3 | 6 | 4.9 | 5 (42%), 6 (31%), 4 (15%) |
+| 6 | 2 | 5 | 3.8 | 5 (38%), 3 (29%), 4 (21%) |
+| 7 | 1 | 5 | 3.4 | 5 (33%), 4 (19%), 3 (19%) |
+| 8 | 1 | 5 | 3.1 | 5 (25%), 4 (23%), 3 (15%) |
+| 9 | 1 | 5 | 2.8 | 4 (23%), 3 (19%), 1 (23%), 2 (23%) |
+| 10 | 0 | 4 | 2.6 | 4 (31%), 2 (27%), 1 (21%) |
+
+Two sub-populations: Samples split into two groups based on how much the pass region extends rightward: 1. Narrow (~50%): Pass width drops quickly (r2: 6–7, r3: 5–6, r4: 4–6) 2. Wide (~50%): Extended pass region (r2: 10–11, r3: 8–11, r4: 7–10)
+
+The wide group has more columns for speckles to appear in rows 1–3.
+
+Speckles in Pass Region Per Row
+| Row | Min | Max | Avg | Notes |
+| --- | --- | --- | --- | --- |
+| 0 | 0 | 1 | 0.0 | Almost never has speckles |
+| 1 | 1 | 4 | 2.4 | Always has speckles — heaviest row |
+| 2 | 0 | 3 | 0.5 | Recovery row — fewer speckles |
+| 3 | 0 | 3 | 1.1 | Moderate speckles |
+| 4 | 0 | 2 | 0.7 |  |
+| 5 | 0 | 3 | 0.9 |  |
+| 6 | 0 | 1 | 0.2 | Sparse |
+| 7 | 0 | 2 | 0.4 |  |
+| 8 | 0 | 2 | 0.2 |  |
+| 9 | 0 | 1 | 0.2 |  |
+| 10 | 0 | 1 | 0.1 |  |
+
+Row 1 Speckle Signature
+Row 1 is the most distinctive feature of this class: - Col 1 is * in 81% of samples - Col 3 is * in 27% - Col 4 is * in 46% - Col 7 is * in 44% - Row 1 always has 1–4 speckle * within the pass region (avg 2.4) - The pass region in row 1 extends far right (avg width 9.3), with speckles scattered throughout
+
+P(A) Probability Matrix (row × col)
+        c0    c1    c2    c3    c4    c5    c6    c7    c8    c9    c10
+r 0:  1.00  1.00  1.00  1.00  1.00  0.98  1.00  1.00  0.96  0.90  0.90
+r 1:  1.00  0.19  0.98  0.73  0.54  0.75  0.79  0.56  0.35  0.48  0.52
+r 2:  1.00  0.85  0.96  0.85  0.94  0.94  0.60  0.42  0.42  0.35  0.35
+r 3:  1.00  0.79  0.83  0.81  0.69  0.71  0.33  0.29  0.33  0.19  0.19
+r 4:  1.00  0.52  0.98  0.81  0.77  0.73  0.25  0.19  0.15  0.04  0.00
+r 5:  1.00  0.62  1.00  0.52  0.56  0.31  0.00  0.00  0.00  0.00  0.00
+r 6:  1.00  0.77  0.88  0.58  0.38  0.00  0.00  0.00  0.00  0.00  0.00
+r 7:  1.00  0.65  0.65  0.44  0.33  0.00  0.00  0.00  0.00  0.00  0.00
+r 8:  1.00  0.60  0.60  0.46  0.25  0.00  0.00  0.00  0.00  0.00  0.00
+r 9:  0.92  0.67  0.50  0.35  0.12  0.00  0.00  0.00  0.00  0.00  0.00
+r10:  0.98  0.69  0.48  0.31  0.00  0.00  0.00  0.00  0.00  0.00  0.00
+Per-Row A Count
+| Row | Min | Max | Avg |
+| --- | --- | --- | --- |
+| 0 | 8 | 11 | 10.7 |
+| 1 | 4 | 10 | 6.9 |
+| 2 | 3 | 11 | 7.7 |
+| 3 | 2 | 10 | 6.2 |
+| 4 | 2 | 9 | 5.4 |
+| 5 | 2 | 6 | 4.0 |
+| 6 | 2 | 5 | 3.6 |
+| 7 | 1 | 5 | 3.1 |
+| 8 | 1 | 5 | 2.9 |
+| 9 | 1 | 5 | 2.6 |
+| 10 | 0 | 4 | 2.5 |
+
+Star Budget
+Total A per sample: 36–64 (avg ~55.5)
+Total * per sample: 57–85 (avg ~65.5)
+Generation Algorithm
+1. Create 11×11 grid of all '*'
+
+2. Determine pass region width per row:
+   a. Row 0: sample from {11:90%, 9:6%, 8:4%}
+   b. Choose sub-population: narrow (50%) or wide (50%)
+   c. For narrow path:
+      - Row 1: 7 (55%) or 6 (15%) or 8 (15%) or 9 (15%)
+      - Row 2: decrease by 0–1 from row 1
+      - Rows 3–4: decrease by 0–1 each
+      - Row 5: clamp to 3–6
+      - Rows 6–10: decrease gradually, floor at 1
+   d. For wide path:
+      - Row 1: 11 (100%)
+      - Row 2: 10–11
+      - Rows 3–4: decrease by 1–3 per row
+      - Resume narrow-style from row 5
+   e. Ensure pass width never increases by more than 1 between
+      adjacent rows, and never < 0
+
+3. Fill pass region:
+   a. For each row, set cols 0..pass_width-1 to 'A'
+
+4. Add speckles to row 1 (always):
+   a. Choose 1–4 speckle positions (avg 2.4):
+      - Col 1: 81% chance of becoming '*'
+      - Other cols within pass region: 15–46% chance each
+   b. Ensure at least 1 speckle in row 1
+
+5. Add speckles to rows 2–10 (sparse):
+   a. For rows 2–5: 0–3 speckles (weighted toward 0–1)
+   b. For rows 6–10: 0–1 speckle (weighted toward 0)
+   c. Place speckles at random positions within pass region
+      (excluding col 0 for rows 0–8)
+
+6. Apply 3×3 noise injection (upper-left first):
+   a. Scan non-overlapping 3×3 blocks from (0,0), stepping by 3
+   b. For each block where all 9 cells are 'A':
+      - Set center cell to '*'
+   c. Mark block cells as used to prevent overlap
+
+7. Validate:
+   - Total speckles in pass region: 3–10
+   - Col 0 is 'A' for rows 0–8
+   - Row 0 has at most 1 speckle
+   - Row 1 has at least 1 speckle
+   - Pass width decreases overall top to bottom
+
+8. Join rows with '_' separator
+
+### Visual Examples
+
+Example 1 — Narrow variant (S05400)
+```text
+AAAAAAAAAAA    ← r0  width=11, 0 speckles
+AAAAA*AAAAA    ← r1  width=11, 1 speckle at col5
+AA*A*******    ← r2  width=4, 1 speckle at col2
+AAAA*******    ← r3  width=4, 0 speckles
+AA*A*******    ← r4  width=4, 1 speckle at col2
+AAAA*******    ← r5  width=4, 0 speckles
+AAA********    ← r6  width=3, 0 speckles
+A*A********    ← r7  width=3, 1 speckle at col1
+AAA********    ← r8  width=3, 0 speckles
+AAA********    ← r9  width=3, 0 speckles
+A*A********    ← r10 width=3, 1 speckle at col1
+```
+Example 2 — Wide variant (S05422)
+```text
+AAAAAAAAAAA    ← r0  width=11, 0 speckles
+AAAA**A*AAA    ← r1  width=11, 2 speckles
+A*AAAAAAAAA    ← r2  width=11, 1 speckle (3×3 noise)
+AAA*A*A*A**    ← r3  width=9, 3 speckles
+AAAAAAA****    ← r4  width=7, 0 speckles
+AAA*A******    ← r5  width=5, 1 speckle
+A*AAA******    ← r6  width=5, 1 speckle (3×3 noise)
+AAAA*******    ← r7  width=4, 0 speckles
+AAAA*******    ← r8  width=4, 0 speckles
+*AAA*******    ← r9  width=4, 1 speckle at col0
+AAA********    ← r10 width=3, 0 speckles
+```
+Example 3 — Medium (S05410)
+```text
+AAAAAAAAAAA    ← r0  width=11, 0 speckles
+A*A*A*A****    ← r1  width=7, 3 speckles
+AAAAAAA****    ← r2  width=7, 0 speckles
+AA*A*A*****    ← r3  width=6, 2 speckles
+AAAAAA*****    ← r4  width=6, 0 speckles
+AAAA*A*****    ← r5  width=6, 1 speckle
+A*AAA******    ← r6  width=5, 1 speckle (3×3 noise)
+AAA*A******    ← r7  width=5, 1 speckle
+A*AAA******    ← r8  width=5, 1 speckle (3×3 noise)
+AAAA*******    ← r9  width=4, 0 speckles
+AAAA*******    ← r10 width=4, 0 speckles
+```
+
+### Distinguishing Features
+
+vs speckles_curve-BL-to-UR-tight/noisy: Those classes have a BL-to-UR curve with pass growing from bottom-left. This class has the pass region widest at the TOP and narrowing downward (UL-to-BR direction).
+vs marginal_curve classes: Marginal curves have a clean boundary with no speckles in the pass region. Inmarginal has scattered * throughout the pass zone.
+Row 1 heavy-speckle signature: The dramatic drop in A-density at row 1 (col 1 is * in 81% of samples) is unique to this class. No other class has this specific row-1 pattern.
+3×3 noise injection: Solid A blocks have their centers replaced with *, adding structured noise within the pass region.
+Pass region is left-anchored: All trailing * are on the right side. Col 0 is almost always A.
+Concave curve shape: The pass width drops sharply from row 0 to row 1 (due to speckles reducing effective A-count), partially recovers at row 2, then decreases gradually through rows 3–10.
+
+---

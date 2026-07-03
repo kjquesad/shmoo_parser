@@ -346,3 +346,47 @@ All thresholds are defined in `shmoo_classifier.py` → `classify_shmoo()`. To a
 
 Priority order matters — the first matching rule wins. Current implementation priority:
 1. red -> 2. clean -> 3. diagonal -> 4. speckled -> 5. ceiling -> 6. floor -> 7. left wall -> 8. right wall -> 9. speed_limit -> 10. slow_limit -> 11. corner -> 12. crack -> 13. island -> 14. mixed
+
+---
+
+## ML Classifier (optional, interpretable)
+
+An optional machine-learning path can replace the hand-tuned rules above with a
+trained model that learns category boundaries from labeled examples. It uses the
+**same** feature vector as the rules (`scripts/ml/feature_extraction.py`), so the
+two are directly comparable. The model is a `StandardScaler + RandomForest`
+(interpretable; exposes per-feature importances).
+
+Workflow (active-learning loop):
+
+1. **Seed labels** — bootstrap a `labels.csv` from the current rule output:
+   ```
+   python scripts/ml/build_label_set.py shmoo_parsed.json -o ml_labels/ --per-class 40
+   ```
+2. **Correct labels** — open `scripts/ml/label_tool.html` in a browser, load
+   `ml_labels/labels_data.json`, fix the `label` column (keyboard 1–9/0/a–g),
+   and export the corrected `labels.csv`.
+3. **Train** — cross-validated metrics + confusion matrix + feature importances:
+   ```
+   python scripts/ml/train_model.py ml_labels/labels.csv -o ml_models/
+   ```
+4. **Classify with the model** (falls back to rules if the model can't load):
+   ```
+   python scripts/shmoo_classifier.py shmoo_parsed.json --model ml_models/model.joblib --min-confidence 0.6
+   ```
+   Predictions below `--min-confidence` are tagged `uncertain`; every result
+   records `classification.method = "ml" | "rule"`.
+5. **Mine the next round** — surface the most informative shmoos (low confidence
+   or rule/ML disagreement) to label next, then retrain:
+   ```
+   python scripts/ml/mine_uncertain.py shmoo_parsed.json --model ml_models/model.joblib -o round2/
+   ```
+
+**Cold start note**: the very first model mimics the rules (labels are seeded
+from them). Its value grows as you correct labels and feed disagreements back in.
+
+**Taxonomy consolidation**: once enough real labels exist, overlapping categories
+(e.g. `left wall` vs `corner_top_left` vs `slow_limit`) can be merged or split
+based on the confusion matrix from `train_model.py` — categories that are
+routinely confused with each other are candidates for consolidation. Defer this
+until labeled data justifies it rather than changing the rules pre-emptively.

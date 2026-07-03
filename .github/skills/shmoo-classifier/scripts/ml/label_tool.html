@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shmoo Label Tool</title>
+<style>
+  :root {
+    --bg: #1e1e1e; --panel: #252526; --border: #3c3c3c; --fg: #d4d4d4;
+    --accent: #0e639c; --accent2: #1177bb; --pass: #2e7d32; --fail: #c62828;
+    --suggest: #c08a00; --ok: #4caf50;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: "Segoe UI", system-ui, sans-serif; font-size: 14px;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; padding: 10px 16px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10; flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .spacer { flex: 1; }
+  button, label.filebtn {
+    background: var(--accent); color: #fff; border: none; padding: 7px 12px;
+    border-radius: 4px; cursor: pointer; font-size: 13px;
+  }
+  button:hover, label.filebtn:hover { background: var(--accent2); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  input[type=file] { display: none; }
+  #progress { font-variant-numeric: tabular-nums; }
+  main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
+  #card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 16px; flex: 1; min-width: 0;
+  }
+  .meta { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin-bottom: 12px; }
+  .meta dt { color: #888; }
+  .meta dd { margin: 0; word-break: break-all; }
+  .grid {
+    font-family: "Cascadia Mono", Consolas, monospace; line-height: 1.0;
+    letter-spacing: 1px; white-space: pre; overflow: auto; max-height: 55vh;
+    background: #111; padding: 10px; border-radius: 4px; border: 1px solid var(--border);
+  }
+  .grid .p { color: #3ddc84; }
+  .grid .f { color: #ff5b5b; }
+  .labels { width: 280px; }
+  .labels h3 { margin: 0 0 8px; font-size: 13px; color: #888; }
+  .catbtn {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    background: #333; margin-bottom: 5px; padding: 8px 10px; border-radius: 4px;
+  }
+  .catbtn:hover { background: #444; }
+  .catbtn .k { display: inline-block; width: 20px; color: #888; font-weight: 700; }
+  .catbtn.current { background: var(--accent); }
+  .catbtn.secondary { outline: 2px dashed var(--ok); outline-offset: -2px; }
+  .catbtn.suggested { outline: 1px dashed var(--suggest); }
+  .pill { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .pill.suggest { background: var(--suggest); color: #000; }
+  .pill.chosen { background: var(--ok); color: #000; }
+  .hint { color: #777; font-size: 12px; margin-top: 10px; line-height: 1.5; }
+  #empty { padding: 40px; text-align: center; color: #888; }
+  .stats { font-size: 12px; color: #aaa; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Shmoo Label Tool</h1>
+  <label class="filebtn">Load labels_data.json<input type="file" id="fileInput" accept="application/json,.json" /></label>
+  <button id="prevBtn" disabled>◀ Prev</button>
+  <button id="nextBtn" disabled>Next ▶</button>
+  <span id="progress" class="stats"></span>
+  <div class="spacer"></div>
+  <span id="counts" class="stats"></span>
+  <button id="exportBtn" disabled>⬇ Export labels.csv</button>
+</header>
+
+<main id="main" style="display:none">
+  <section id="card">
+    <dl class="meta" id="meta"></dl>
+    <div class="grid" id="grid"></div>
+  </section>
+  <aside class="labels">
+    <h3>ASSIGN CATEGORY</h3>
+    <div id="catList"></div>
+    <div class="hint">
+      Keys: <b>1–9, 0, a–g</b> set primary · <b>Shift+key</b> (or Shift+click)
+      toggle a 2nd category · <b>Backspace</b> clear 2nd · <b>←/→</b> navigate ·
+      <b>Enter</b> accept suggestion &amp; next · <b>s</b> skip.
+      Edits stay in memory until you Export.
+    </div>
+  </aside>
+</main>
+<div id="empty">Load a <code>labels_data.json</code> produced by <code>build_label_set.py</code> to begin.</div>
+
+<script>
+"use strict";
+
+// Canonical category list (order defines keyboard shortcuts).
+const CATEGORIES = [
+  "clean", "red", "ceiling", "floor", "speed_limit", "slow_limit",
+  "diagonal", "left wall", "right wall",
+  "corner_top_left", "corner_top_right", "corner_bottom_left", "corner_bottom_right",
+  "crack", "island", "speckled", "mixed", "unknown"
+];
+// Shortcut keys: 1-9, 0, then a-g.
+const KEYS = ["1","2","3","4","5","6","7","8","9","0","a","b","c","d","e","f","g","h"];
+
+let DATA = null;          // full payload
+let SHMOOS = [];          // list of shmoo objects
+let FEATURE_NAMES = [];   // ordered feature names for CSV export
+let idx = 0;              // current index
+const chosen = {};        // key -> primary label
+const chosen2 = {};       // key -> secondary label (optional)
+
+const $ = (id) => document.getElementById(id);
+
+$("fileInput").addEventListener("change", onFile);
+$("prevBtn").addEventListener("click", () => go(idx - 1));
+$("nextBtn").addEventListener("click", () => go(idx + 1));
+$("exportBtn").addEventListener("click", exportCsv);
+document.addEventListener("keydown", onKey);
+
+function onFile(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      DATA = JSON.parse(reader.result);
+      SHMOOS = DATA.shmoos || [];
+      FEATURE_NAMES = DATA.feature_names || [];
+      if (!SHMOOS.length) { alert("No shmoos found in file."); return; }
+      // Seed chosen labels with suggestions.
+      for (const s of SHMOOS) {
+        chosen[s.key] = chosen[s.key] || s.suggested_label || "unknown";
+      }
+      idx = 0;
+      $("empty").style.display = "none";
+      $("main").style.display = "flex";
+      $("exportBtn").disabled = false;
+      buildCatButtons();
+      render();
+    } catch (e) {
+      alert("Failed to parse JSON: " + e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function buildCatButtons() {
+  const list = $("catList");
+  list.innerHTML = "";
+  CATEGORIES.forEach((cat, i) => {
+    const btn = document.createElement("button");
+    btn.className = "catbtn";
+    btn.dataset.cat = cat;
+    btn.innerHTML = `<span class="k">${KEYS[i] || ""}</span><span>${cat}</span>`;
+    btn.addEventListener("click", (ev) => {
+      if (ev.shiftKey) { toggleSecondary(cat); } else { assign(cat); }
+    });
+    list.appendChild(btn);
+  });
+}
+
+function go(n) {
+  if (!SHMOOS.length) return;
+  idx = Math.max(0, Math.min(SHMOOS.length - 1, n));
+  render();
+}
+
+function assign(cat, advance) {
+  const s = SHMOOS[idx];
+  if (!s) return;
+  chosen[s.key] = cat;
+  // A primary that equals the secondary clears the redundant secondary.
+  if (chosen2[s.key] === cat) delete chosen2[s.key];
+  render();
+  if (advance && idx < SHMOOS.length - 1) go(idx + 1);
+}
+
+function toggleSecondary(cat) {
+  const s = SHMOOS[idx];
+  if (!s) return;
+  if (chosen[s.key] === cat) return;        // can't be its own secondary
+  if (chosen2[s.key] === cat) {
+    delete chosen2[s.key];                   // toggle off
+  } else {
+    chosen2[s.key] = cat;                    // set / replace secondary
+  }
+  render();
+}
+
+function onKey(ev) {
+  if (!SHMOOS.length || $("main").style.display === "none") return;
+  if (ev.key === "ArrowRight") { go(idx + 1); return; }
+  if (ev.key === "ArrowLeft") { go(idx - 1); return; }
+  if (ev.key === "Enter") {
+    const s = SHMOOS[idx];
+    assign(s.suggested_label || "unknown", true);
+    return;
+  }
+  if (ev.key === "Backspace") {
+    const s = SHMOOS[idx];
+    if (s) { delete chosen2[s.key]; render(); }
+    return;
+  }
+  if (ev.key === "s") { go(idx + 1); return; }
+  const ki = KEYS.indexOf(ev.key.toLowerCase());
+  if (ki >= 0 && ki < CATEGORIES.length) {
+    if (ev.shiftKey) { toggleSecondary(CATEGORIES[ki]); }
+    else { assign(CATEGORIES[ki]); }
+  }
+}
+
+function render() {
+  const s = SHMOOS[idx];
+  if (!s) return;
+
+  // Metadata.
+  const meta = $("meta");
+  const rows = [
+    ["Visual ID", s.visual_id || "—"],
+    ["Instance", s.instance || "—"],
+    ["PList", s.plist || "—"],
+    ["Die", s.die_id || "—"],
+    ["Vmin", s.vmin_found || "—"],
+    ["Size", `${s.num_rows} × ${s.num_cols}`],
+    ["X / Y", `${s.xlabel || "?"} / ${s.ylabel || "?"}`],
+  ];
+  meta.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+
+  // Grid: '*' = pass, anything else = fail.
+  renderGrid(s.rows || []);
+
+  // Category buttons state.
+  const cur = chosen[s.key];
+  const cur2 = chosen2[s.key];
+  document.querySelectorAll(".catbtn").forEach((b) => {
+    b.classList.toggle("current", b.dataset.cat === cur);
+    b.classList.toggle("secondary", b.dataset.cat === cur2);
+    b.classList.toggle("suggested", b.dataset.cat === s.suggested_label);
+  });
+
+  // Progress + counts.
+  $("progress").textContent =
+    `#${idx + 1} / ${SHMOOS.length}  ·  suggest: ${s.suggested_label}  ·  chosen: ${cur}` +
+    (cur2 ? ` + ${cur2}` : "");
+  $("prevBtn").disabled = idx === 0;
+  $("nextBtn").disabled = idx === SHMOOS.length - 1;
+  updateCounts();
+}
+
+function renderGrid(rows) {
+  const grid = $("grid");
+  const out = [];
+  for (const row of rows) {
+    let line = "";
+    // Build with spans, batching consecutive same-class chars.
+    let buf = "", cls = null;
+    for (const ch of row) {
+      const c = ch === "*" ? "p" : "f";
+      if (c !== cls) {
+        if (buf) line += `<span class="${cls}">${esc(buf)}</span>`;
+        buf = ch; cls = c;
+      } else { buf += ch; }
+    }
+    if (buf) line += `<span class="${cls}">${esc(buf)}</span>`;
+    out.push(line);
+  }
+  grid.innerHTML = out.join("\n");
+}
+
+function updateCounts() {
+  const counts = {};
+  for (const k in chosen) counts[chosen[k]] = (counts[chosen[k]] || 0) + 1;
+  let withSecond = 0;
+  for (const k in chosen2) if (chosen2[k]) withSecond++;
+  const parts = Object.keys(counts).sort((a, b) => counts[b] - counts[a])
+    .map((c) => `${c}:${counts[c]}`);
+  $("counts").textContent = parts.join("  ") + (withSecond ? `   (2-cat: ${withSecond})` : "");
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function exportCsv() {
+  if (!SHMOOS.length) return;
+  const metaCols = ["key", "label", "label2", "suggested_label", "visual_id",
+    "instance", "plist", "die_id", "vmin_found", "num_rows", "num_cols"];
+  const header = metaCols.concat(FEATURE_NAMES);
+  const lines = [header.map(csvCell).join(",")];
+
+  for (const s of SHMOOS) {
+    const f = s.features || {};
+    const row = [
+      s.key,
+      chosen[s.key] || s.suggested_label || "unknown",
+      chosen2[s.key] || "",
+      s.suggested_label || "",
+      s.visual_id || "",
+      s.instance || "",
+      s.plist || "",
+      s.die_id || "",
+      s.vmin_found || "",
+      s.num_rows,
+      s.num_cols,
+    ];
+    for (const name of FEATURE_NAMES) {
+      let v = f[name];
+      if (v === true) v = 1; else if (v === false) v = 0;
+      else if (v === undefined || v === null) v = 0;
+      row.push(v);
+    }
+    lines.push(row.map(csvCell).join(","));
+  }
+
+  const blob = new Blob([lines.join("\r\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "labels.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(v) {
+  const s = String(v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+</script>
+</body>
+</html>

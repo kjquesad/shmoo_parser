@@ -1,0 +1,46 @@
+================================================================
+  Shmoo ML Classifier — Training Report (MULTI-LABEL)
+================================================================
+  Source           : ml_work\labels.csv
+  Samples          : 255
+  Classes          : 7
+  CV folds         : 5
+  Subset accuracy  : 0.929  (exact 2-label match)
+  Macro F1         : 0.904
+  Weighted F1      : 0.965
+
+  Per-class metrics (cross-validated, one-vs-rest):
+----------------------------------------------------------------
+              precision    recall  f1-score   support
+
+       clean       1.00      0.95      0.98        63
+    diagonal       1.00      0.89      0.94        19
+       floor       1.00      0.98      0.99        66
+       mixed       0.98      0.95      0.96        55
+         red       1.00      1.00      1.00        52
+    speckled       0.45      0.62      0.53         8
+ speed_limit       0.86      1.00      0.92         6
+
+   micro avg       0.97      0.96      0.96       269
+   macro avg       0.90      0.91      0.90       269
+weighted avg       0.98      0.96      0.97       269
+ samples avg       0.96      0.96      0.96       269
+
+  Top feature importances:
+----------------------------------------------------------------
+  vertical_gradient         0.080  #####
+  vertical_symmetry         0.078  #####
+  horizontal_gradient       0.076  #####
+  boundary_spread           0.075  ####
+  horizontal_symmetry       0.068  ####
+  avg_row_transitions       0.064  ####
+  is_diagonal               0.063  ####
+  isolated_fail_ratio       0.044  ###
+  aspect_ratio              0.037  ##
+  max_row_transitions       0.031  ##
+  largest_cluster_ratio     0.031  ##
+  bot_fail_ratio            0.027  ##
+  q_br_ratio                0.025  ##
+  num_rows                  0.025  ##
+  center_band_fail_ratio    0.024  #
+================================================================

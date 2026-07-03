@@ -30,249 +30,141 @@ import sys
 import argparse
 from pathlib import Path
 
+# Feature extraction is shared with the ML pipeline so training and the
+# rule-based classifier always use identical features.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ml.feature_extraction import (  # noqa: E402
+    FEATURE_NAMES,
+    rows_to_matrix,
+    compute_features,
+    features_to_vector,
+    _check_diagonal,
+)
+
 
 def _progress(msg):
     print(msg, flush=True)
 
 
-def rows_to_matrix(rows):
-    """Convert rows list to binary matrix: 1=fail, 0=pass."""
-    matrix = []
-    for row in rows:
-        matrix.append([0 if ch == '*' else 1 for ch in row])
-    return matrix
+# ---------------------------------------------------------------------------
+# Optional ML model inference
+# ---------------------------------------------------------------------------
+def load_model(model_path):
+    """
+    Load a trained model + its metadata sidecar.
+
+    Returns (model, meta) or (None, None) on any failure (so the caller can
+    transparently fall back to the rule-based classifier).
+    """
+    try:
+        import joblib  # local import: only needed on the ML path
+    except ImportError:
+        _progress("[classifier] joblib not installed; using rule-based classifier.")
+        return None, None
+
+    mpath = Path(model_path)
+    if not mpath.is_file():
+        _progress(f"[classifier] Model not found ({mpath}); using rule-based classifier.")
+        return None, None
+
+    meta_path = mpath.parent / "model_meta.json"
+    meta = {}
+    if meta_path.is_file():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            meta = {}
+
+    # Validate feature order matches what this code produces.
+    trained_features = meta.get("feature_names")
+    if trained_features and list(trained_features) != list(FEATURE_NAMES):
+        _progress(
+            "[classifier] WARNING: model feature order differs from current "
+            "FEATURE_NAMES; falling back to rule-based classifier."
+        )
+        return None, None
+
+    try:
+        model = joblib.load(mpath)
+    except Exception as exc:  # noqa: BLE001 - any load error -> rule fallback
+        _progress(f"[classifier] Failed to load model ({exc}); using rule-based classifier.")
+        return None, None
+
+    _progress(f"[classifier] Loaded ML model: {mpath}")
+    return model, meta
 
 
-def compute_features(matrix):
-    """Compute spatial features from a binary fail matrix."""
-    if not matrix or not matrix[0]:
-        return None
+def predict_with_model(model, features, min_confidence, secondary_confidence=None, meta=None):
+    """
+    Predict category + confidence for one shmoo's feature dict.
 
-    num_rows = len(matrix)
-    num_cols = len(matrix[0])
-    total_cells = num_rows * num_cols
+    Returns ``(category, confidence, secondary)`` where ``secondary`` is a list
+    of ``(category, confidence)`` tuples for additional labels whose probability
+    is at least ``secondary_confidence`` (empty when ``secondary_confidence`` is
+    None or no other class qualifies).
 
-    if total_cells == 0:
-        return None
+    Supports both single-label models (one category per shmoo) and multi-label
+    models (trained with two categories); for multi-label, ``meta`` must carry
+    ``label_classes`` describing the output column order.
 
-    # Total fail ratio
-    total_fails = sum(sum(row) for row in matrix)
-    total_fail_ratio = total_fails / total_cells
+    When the top-class probability is below ``min_confidence`` the primary
+    category is reported as ``"uncertain"`` (the raw confidence is still returned
+    so it can be surfaced for active learning), and no secondary is emitted.
+    """
+    import numpy as np  # local import: only needed on the ML path
 
-    # Row splits
-    mid_row = num_rows // 2
-    mid_col = num_cols // 2
+    vec = np.asarray(features_to_vector(features), dtype=float).reshape(1, -1)
 
-    # Top half (high Y = high voltage, later rows in the array correspond to higher Y)
-    # In shmoo_parsed.json, rows[0] = lowest Y, rows[-1] = highest Y
-    top_cells = sum(len(row) for row in matrix[mid_row:])
-    top_fails = sum(sum(row) for row in matrix[mid_row:])
-    top_fail_ratio = top_fails / top_cells if top_cells > 0 else 0
+    if meta and meta.get("multilabel"):
+        ranked = _multilabel_ranked(model, vec, meta.get("label_classes", []))
+    elif hasattr(model, "predict_proba"):
+        proba = model.predict_proba(vec)[0]
+        classes = list(model.classes_)
+        order = list(np.argsort(proba)[::-1])
+        ranked = [(classes[i], float(proba[i])) for i in order]
+    else:
+        ranked = [(str(model.predict(vec)[0]), 1.0)]
 
-    # Bottom half (low Y)
-    bot_cells = sum(len(row) for row in matrix[:mid_row])
-    bot_fails = sum(sum(row) for row in matrix[:mid_row])
-    bot_fail_ratio = bot_fails / bot_cells if bot_cells > 0 else 0
+    if not ranked:
+        return "uncertain", 0.0, []
 
-    # Left half (low X = low timing)
-    left_fails = sum(sum(row[:mid_col]) for row in matrix)
-    left_cells = mid_col * num_rows
-    left_fail_ratio = left_fails / left_cells if left_cells > 0 else 0
+    category, confidence = ranked[0]
 
-    # Right half (high X = high timing)
-    right_fails = sum(sum(row[mid_col:]) for row in matrix)
-    right_cells = (num_cols - mid_col) * num_rows
-    right_fail_ratio = right_fails / right_cells if right_cells > 0 else 0
+    if confidence < min_confidence:
+        return "uncertain", confidence, []
 
-    # Center region (middle 50% of rows and cols)
-    r_start = num_rows // 4
-    r_end = num_rows - num_rows // 4
-    c_start = num_cols // 4
-    c_end = num_cols - num_cols // 4
-    center_fails = sum(
-        sum(matrix[r][c_start:c_end]) for r in range(r_start, r_end)
-    )
-    center_cells = (r_end - r_start) * (c_end - c_start)
-    center_fail_ratio = center_fails / center_cells if center_cells > 0 else 0
+    secondary = []
+    if secondary_confidence is not None:
+        for cat, conf in ranked[1:]:
+            if conf >= secondary_confidence:
+                secondary.append((cat, conf))
+    return category, confidence, secondary
 
-    # Edge region (everything NOT in center)
-    edge_fails = total_fails - center_fails
-    edge_cells = total_cells - center_cells
-    edge_fail_ratio = edge_fails / edge_cells if edge_cells > 0 else 0
 
-    # Vertical thirds for left/right wall detection
-    third_col = max(1, num_cols // 3)
-    left_end = third_col
-    right_start = num_cols - third_col
+def _multilabel_ranked(model, vec, label_classes):
+    """
+    Return [(class, prob_present), ...] sorted descending for a multi-label
+    model whose ``predict_proba`` yields one array per label column.
+    """
+    import numpy as np  # local import: only needed on the ML path
 
-    left_edge_fails = sum(sum(row[:left_end]) for row in matrix)
-    left_edge_cells = left_end * num_rows
-    left_edge_fail_ratio = left_edge_fails / left_edge_cells if left_edge_cells > 0 else 0
-
-    right_edge_fails = sum(sum(row[right_start:]) for row in matrix)
-    right_edge_cells = (num_cols - right_start) * num_rows
-    right_edge_fail_ratio = right_edge_fails / right_edge_cells if right_edge_cells > 0 else 0
-
-    center_band_fails = sum(sum(row[left_end:right_start]) for row in matrix)
-    center_band_cells = max(0, (right_start - left_end) * num_rows)
-    center_band_fail_ratio = (
-        center_band_fails / center_band_cells if center_band_cells > 0 else 0
-    )
-
-    # Quadrant fail ratios
-    q_tl_fails = sum(sum(matrix[r][:mid_col]) for r in range(mid_row, num_rows))
-    q_tr_fails = sum(sum(matrix[r][mid_col:]) for r in range(mid_row, num_rows))
-    q_bl_fails = sum(sum(matrix[r][:mid_col]) for r in range(0, mid_row))
-    q_br_fails = sum(sum(matrix[r][mid_col:]) for r in range(0, mid_row))
-
-    q_tl_cells = (num_rows - mid_row) * mid_col
-    q_tr_cells = (num_rows - mid_row) * (num_cols - mid_col)
-    q_bl_cells = mid_row * mid_col
-    q_br_cells = mid_row * (num_cols - mid_col)
-
-    q_tl_ratio = q_tl_fails / q_tl_cells if q_tl_cells > 0 else 0
-    q_tr_ratio = q_tr_fails / q_tr_cells if q_tr_cells > 0 else 0
-    q_bl_ratio = q_bl_fails / q_bl_cells if q_bl_cells > 0 else 0
-    q_br_ratio = q_br_fails / q_br_cells if q_br_cells > 0 else 0
-
-    # Per-row fail ratio (for diagonal detection)
-    per_row_fail_ratio = []
-    row_transitions = []
-    for row in matrix:
-        row_total = len(row)
-        row_fails = sum(row)
-        per_row_fail_ratio.append(row_fails / row_total if row_total > 0 else 0)
-        transitions = 0
-        for i in range(len(row) - 1):
-            if row[i] != row[i + 1]:
-                transitions += 1
-        row_transitions.append(transitions)
-
-    # Boundary detection: find first passing column per row (left-to-right)
-    # Used to detect diagonal boundaries
-    boundary_cols = []
-    for row in matrix:
-        first_pass = None
-        for c, val in enumerate(row):
-            if val == 0:
-                first_pass = c
+    proba_list = model.predict_proba(vec)  # list of (1, n_classes_i) arrays
+    rf = model.named_steps["rf"] if hasattr(model, "named_steps") else model
+    per_output_classes = getattr(rf, "classes_", None)
+    ranked = []
+    for i, cls_name in enumerate(label_classes):
+        if i >= len(proba_list):
+            break
+        arr = np.asarray(proba_list[i])[0]
+        classes_i = per_output_classes[i] if per_output_classes is not None else [0, 1]
+        p_present = 0.0
+        for j, cval in enumerate(classes_i):
+            if int(cval) == 1:
+                p_present = float(arr[j])
                 break
-        boundary_cols.append(first_pass)  # None if entire row fails
-
-    # Check if boundary is monotonically increasing (diagonal shape)
-    is_diagonal = _check_diagonal(boundary_cols, num_cols)
-
-    # Speckled helpers: isolated fail ratio and largest fail cluster ratio
-    isolated_fails = 0
-    for r in range(num_rows):
-        for c in range(num_cols):
-            if matrix[r][c] != 1:
-                continue
-            neighbor_fails = 0
-            for dr in (-1, 0, 1):
-                for dc in (-1, 0, 1):
-                    if dr == 0 and dc == 0:
-                        continue
-                    rr = r + dr
-                    cc = c + dc
-                    if 0 <= rr < num_rows and 0 <= cc < num_cols and matrix[rr][cc] == 1:
-                        neighbor_fails += 1
-            if neighbor_fails <= 1:
-                isolated_fails += 1
-
-    isolated_fail_ratio = isolated_fails / total_fails if total_fails > 0 else 0
-
-    visited = [[False for _ in range(num_cols)] for _ in range(num_rows)]
-    largest_cluster = 0
-
-    for r in range(num_rows):
-        for c in range(num_cols):
-            if matrix[r][c] != 1 or visited[r][c]:
-                continue
-            # Iterative DFS for 8-connected fail clusters
-            stack = [(r, c)]
-            visited[r][c] = True
-            cluster_size = 0
-            while stack:
-                cr, cc = stack.pop()
-                cluster_size += 1
-                for dr in (-1, 0, 1):
-                    for dc in (-1, 0, 1):
-                        if dr == 0 and dc == 0:
-                            continue
-                        nr = cr + dr
-                        nc = cc + dc
-                        if (
-                            0 <= nr < num_rows
-                            and 0 <= nc < num_cols
-                            and not visited[nr][nc]
-                            and matrix[nr][nc] == 1
-                        ):
-                            visited[nr][nc] = True
-                            stack.append((nr, nc))
-            if cluster_size > largest_cluster:
-                largest_cluster = cluster_size
-
-    largest_cluster_ratio = largest_cluster / total_fails if total_fails > 0 else 0
-    avg_row_transitions = (
-        sum(row_transitions) / len(row_transitions) if row_transitions else 0
-    )
-    max_row_transitions = max(row_transitions) if row_transitions else 0
-
-    return {
-        "total_fail_ratio": round(total_fail_ratio, 4),
-        "top_fail_ratio": round(top_fail_ratio, 4),
-        "bot_fail_ratio": round(bot_fail_ratio, 4),
-        "left_fail_ratio": round(left_fail_ratio, 4),
-        "right_fail_ratio": round(right_fail_ratio, 4),
-        "center_fail_ratio": round(center_fail_ratio, 4),
-        "edge_fail_ratio": round(edge_fail_ratio, 4),
-        "left_edge_fail_ratio": round(left_edge_fail_ratio, 4),
-        "right_edge_fail_ratio": round(right_edge_fail_ratio, 4),
-        "center_band_fail_ratio": round(center_band_fail_ratio, 4),
-        "q_tl_ratio": round(q_tl_ratio, 4),
-        "q_tr_ratio": round(q_tr_ratio, 4),
-        "q_bl_ratio": round(q_bl_ratio, 4),
-        "q_br_ratio": round(q_br_ratio, 4),
-        "is_diagonal": is_diagonal,
-        "isolated_fail_ratio": round(isolated_fail_ratio, 4),
-        "largest_cluster_ratio": round(largest_cluster_ratio, 4),
-        "avg_row_transitions": round(avg_row_transitions, 4),
-        "max_row_transitions": int(max_row_transitions),
-        "num_rows": num_rows,
-        "num_cols": num_cols,
-    }
-
-
-def _check_diagonal(boundary_cols, num_cols):
-    """
-    Check if the pass/fail boundary follows a roughly monotonic diagonal.
-    boundary_cols[i] = first passing column in row i (None if all-fail row).
-    Rows go from low Y (index 0) to high Y (index -1).
-    A classic diagonal: lower rows fail more (boundary further right),
-    upper rows pass more (boundary further left).
-    """
-    valid = [(i, c) for i, c in enumerate(boundary_cols) if c is not None]
-    if len(valid) < 4:
-        return False
-
-    # Check if boundary columns are roughly monotonically decreasing
-    # (as Y increases, the fail region shrinks from the left)
-    cols = [c for _, c in valid]
-
-    # Allow some noise: count how many pairs are monotonically decreasing
-    monotone_count = 0
-    for i in range(len(cols) - 1):
-        if cols[i] >= cols[i + 1]:
-            monotone_count += 1
-
-    monotone_ratio = monotone_count / (len(cols) - 1)
-
-    # Also check: is there meaningful spread in boundary positions?
-    col_range = max(cols) - min(cols)
-    spread_ratio = col_range / num_cols if num_cols > 0 else 0
-
-    return monotone_ratio >= 0.65 and spread_ratio >= 0.3
+        ranked.append((cls_name, p_present))
+    ranked.sort(key=lambda p: -p[1])
+    return ranked
 
 
 def classify_shmoo(features):
@@ -401,13 +293,22 @@ def _iter_shmoo_entries(shmoos):
                         yield entry
 
 
-def classify_parsed_json(data):
+def classify_parsed_json(data, model=None, min_confidence=0.0, secondary_confidence=None, model_meta=None):
     """
     Process the full shmoo_parsed.json structure.
+
+    If ``model`` is provided, each shmoo is classified by the ML model and the
+    result is tagged with ``method="ml"``; predictions below ``min_confidence``
+    are reported as ``"uncertain"``. When ``secondary_confidence`` is given, a
+    second category is added whenever its probability is at least that value
+    (useful for shmoos that show two patterns, e.g. floor + speckled). Without a
+    model, the rule-based classifier is used and tagged ``method="rule"``.
+
     Returns a list of classification results.
     """
     results = []
     shmoos = data.get("shmoos", {})
+    method = "ml" if model is not None else "rule"
 
     processed = 0
     total_hint = int(data.get("total_shmoos") or 0)
@@ -424,31 +325,46 @@ def classify_parsed_json(data):
                     "visual_id": entry.get("visual_id"),
                     "instance": entry.get("instance", ""),
                     "plist": entry.get("plist", ""),
-                    "classification": {"category": "unknown", "confidence": 0.0, "features": None},
+                    "classification": {"category": "unknown", "confidence": 0.0,
+                                       "features": None, "method": method},
                 })
                 continue
 
             matrix = rows_to_matrix(rows)
             features = compute_features(matrix)
-            category, confidence = classify_shmoo(features)
+            secondary = []
+            if model is not None:
+                category, confidence, secondary = predict_with_model(
+                    model, features, min_confidence, secondary_confidence, model_meta
+                )
+            else:
+                category, confidence = classify_shmoo(features)
+
+            classification = {
+                "category": category,
+                "confidence": confidence,
+                "features": features,
+                "method": method,
+            }
+            # Ordered list of all assigned categories (primary first), plus a
+            # convenience secondary_* pair for the top extra label.
+            categories = [{"category": category, "confidence": confidence}]
+            for sec_cat, sec_conf in secondary:
+                categories.append({"category": sec_cat, "confidence": sec_conf})
+            if len(categories) > 1:
+                classification["categories"] = categories
+                classification["secondary_category"] = categories[1]["category"]
+                classification["secondary_confidence"] = categories[1]["confidence"]
 
             results.append({
                 "visual_id": entry.get("visual_id"),
                 "instance": entry.get("instance", ""),
                 "plist": entry.get("plist", ""),
-                "classification": {
-                    "category": category,
-                    "confidence": confidence,
-                    "features": features,
-                },
+                "classification": dict(classification),
             })
 
             # Also inject classification into the entry itself
-            entry["classification"] = {
-                "category": category,
-                "confidence": confidence,
-                "features": features,
-            }
+            entry["classification"] = classification
 
             if processed % 200 == 0:
                 if total_hint:
@@ -479,6 +395,11 @@ def main():
     parser = argparse.ArgumentParser(description="Classify shmoo shapes from shmoo_parsed.json")
     parser.add_argument("input", help="Path to shmoo_parsed.json")
     parser.add_argument("--output", "-o", help="Output path for classified JSON (default: shmoo_classified.json next to input)")
+    parser.add_argument("--model", help="Path to a trained model.joblib. When given, uses ML classification with rule-based fallback on load failure.")
+    parser.add_argument("--min-confidence", type=float, default=0.0,
+                        help="ML only: predictions below this probability are tagged 'uncertain' (default: 0.0).")
+    parser.add_argument("--secondary-confidence", type=float, default=None,
+                        help="ML only: also assign a second category when its probability is at least this value (e.g. 0.2). Off by default.")
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -490,7 +411,15 @@ def main():
         data = json.load(f)
 
     _progress(f"[classifier] Loaded input JSON: {input_path}")
-    results = classify_parsed_json(data)
+
+    model = None
+    model_meta = None
+    if args.model:
+        model, model_meta = load_model(args.model)
+
+    results = classify_parsed_json(data, model=model, min_confidence=args.min_confidence,
+                                   secondary_confidence=args.secondary_confidence,
+                                   model_meta=model_meta)
     print_summary(results)
 
     # Determine output path

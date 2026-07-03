@@ -1,0 +1,93 @@
+{
+  "crack_curve_BL-to-UR": [
+    "AAAAAAAAAA*_AAAAAAAAA**_AAAAAAAA***_AAAAAAA**AA_AAAAA****A*_AAAA***AAA*_AAA**AAA***_AA**AA*****_A***AA*****_A*AA*******_A*A********"
+  ],
+  "crack_horiz-1band-mid-Ledge": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_A**********_A**********_AA********A_AAAAAAAAAAA_A***AAA***A_A**********_A**********_A**********_A**********",
+    "AAAAAAAAAAA_AAAAAAAAAAA_A********A*_A*AA**AAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AA*AAAA****_AA*********_A**********_A**********_A**********"
+  ],
+  "crack_horiz-1band-mid-open": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_***********_***********_A**AAA*****_AAAAAAAAAAA_A**********_***********_***********_***********_***********",
+    "AAAAAAAAAAA_AAAAAAAAAAA_***********_******AA***_AAAAAAA*A**_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_********AAA_***********_***********",
+    "AAAAAAAAAAA_AAAAAAAAAAA_AA*******AA_*******A***_AAAAAAA*A**_AA******AAA_A********AA_***********_***********_***********_***********"
+  ],
+  "crack_horiz-3band-bot-dominant-Ledge": [
+    "A**********_AAAAAAAAAAA_AAAAAAAAAAA_A**********_AAAAAAAAAAA_AAAAAAAAAAA_AA*********_AA*********_AA*********_AA*********_AAAAAAAAAAA",
+    "AAA********_AAAAAAAAAAA_AAAAAAAAAAA_AAA********_AAAAAAAAAAA_AAAAAAAAAAA_A**********_AA*********_AAA********_AAAA*******_AAAAAAAAAAA",
+    "***********_AAAAAAAAAAA_AAAAAAAAAAA_***********_AAAAAAAAAAA_AAAAAAAAAAA_A**********_A**********_A**********_AAAAA******_AAAAAAAAAAA",
+    "AAA********_AAAAAAAAAAA_AAAAAAAAAAA_AAA********_AAAAAAA*AAA_AAAAAAAAAAA_AA*********_AA*********_AA*********_AAA********_AAAAAAAAAAA",
+    "***********_AAAAAAAAAAA_AAAAAAAAAAA_***********_AAAAAAAAAAA_AAAAAAAAAAA_***********_**********A_AA********A_AAAA***AAAA_AAAAAAAAAAA"
+  ],
+  "crack_horiz-3band-clean": [
+    "***********_AAAAAAAAAAA_***********_***********_**********A_AAAAAAAAAA*_***********_***********_AAAAAAAAA**_********AAA_***********",
+    "***********_AAAAAAAAAAA_***********_***********_A**********_*AAAAAAAAAA_***********_***********_*A*AAAAAAAA_A**AAA*****_***********",
+    "***********_AAAAAAAAA*A_***********_***********_AAAAAAAAAA*_**********A_***********_***********_AAAAAAAAAAA_**********A_***********",
+    "***********_AAAAAAAAAAA_***********_***********_*A***AAA**A_AAAAA***AA*_***********_***********_*AAA*AAAAAA_*AA**A***AA_***********"
+  ],
+  "crack_horiz-3band-noisy": [
+    "AAAAAAAAAAA_**********A_***********_***********_AAA**A*A***_AAAAAAAAAAA_AAA*AAAA***_***********_***********_A***AAA****_AAAAAAAAAAA",
+    "AAAAAAAAAAA_***AAA*A***_***********_***********_******AAA**_AAAAAAAAAAA_AA*********_***********_***********_AA*A*******_AAAAAAAAAAA",
+    "AAAAAAAAAAA_AAA***AAAAA_***********_***********_*********AA_AAAAAAAAAAA_*********AA_***********_***********_A**********_AAAAAAAAAAA",
+    "AAAAAAAAAAA_******AAAAA_***********_***********_AAAAA**AA*A_AA**AAAAAAA_AA*AA**AA*A_***********_***********_A*AA**A**AA_AAAAAAAAAAA"
+  ],
+  "crack_horiz-3band-noisy-thick": [
+    "AAAAAAAAAAA_***********_AAA***AA***_AAAAAAAAAAA_*A*A*AA*AAA_***********_AA*A*A*****_AAAAAAAAAAA_AAAAAAAAAAA_AA***A**AAA_***********",
+    "AAAAAAAAAAA_***********_*****A*****_AAAAAAAAAAA_AAAAAAAAAAA_***********_AA*****AA**_AAAAAAAAAAA_AAAAAAAAAAA_****AA**AAA_***********",
+    "AAAAAAAAAAA_*A*****AA**_**********A_AAAAAAAAAAA_AAAAAAAAAA*_***********_*******AA**_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAA**_***********"
+  ],
+  "crack_horiz-stepped-lower": [
+    "AA********A_AA********A_AA********A_A*********A_A*********A_AAA*AAAAAAA_AAA*AAAAAAA_AAAAAA*AAAA_AAAAAA*AAAA_A**********_***********",
+    "AAA****AAAA_AAA*****AAA_AAA*****AAA_AAA*****AAA_AAA*****AAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAA****AAAA",
+    "AAAAA**AAAA_AAAAA**AAAA_AAAA***AAAA_AAAA***AAAA_AAAA***AAAA_AAAA***AAAA_AAAA***AAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAA***AAAA",
+    "AA*******AA_AA*******AA_AA*******AA_A********AA_A********AA_AAA**AAAAAA_AAA**AAAA*A_AA*AAA*AA*A_A***AA*A**A_A*********A_A*********A"
+  ],
+  "marginal_curve-BL-to-UR": [
+    "AAAA*******_AAAA*******_AAAA*******_AAAAA******_AAAAA******_AAAAA******_AAAAAA*****_AAAAAAA****_AAAAAAAA***_AAAAAAAAA**_AAAAAAAAAAA",
+    "A**********_A**********_A**********_A**********_AA*********_AAAAA******_AAAAAAAAAA*_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA"
+  ],
+  "marginal_horiz-band-mid": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_***********_***********_***********_AAAAAAAAAAA_AAAAAAAAAAA",
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAA*AAAA**A_**********A_***********_***********_***********_AAAAAAAAAAA_AAAAAAAAAAA"
+  ],
+  "marginal_horiz-passing-1band": [],
+  "marginal_horiz-passing-2band": [],
+  "marginal_horiz-special-stepped": [],
+  "marginal_vert-curve": [],
+  "near-solid_horiz-bl_cntr_ur": [
+    "AAAAAAAAA*A_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAA*AAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_A*AAAAAAAAA"
+  ],
+  "near-solid_horiz-bot-br": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_***AA*AAAAA_**********A_**********A"
+  ],
+  "near-solid_horiz-crack-1line-noisy": [
+    "AAAAAAAAAAA_A*AAAAAAAAA_A*********A_AA*AAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAA*AAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAA*AAAAAAA_AAAAA*AAAAA"
+  ],
+  "near-solid_horiz-crack-center-scattered": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AA***A***AA_AAAA*AAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA",
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_****AAA****_A*******A**_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA",
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AA***AAAAA*_A*AAAA*A*AA_*AAAA*AA*AA_AAAAAA*AAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA"
+  ],
+  "near-solid_horiz-thin-edge": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAA*AAAAAA_AAAAAAAA*AA",
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AA*AAAAAAAA_*AAAAA*AAAA"
+  ],
+  "near-solid_vert-3corners-ul-bl-br": [
+    "A*AAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_*AAAAAAAA*A_AAAAAAAAAAA"
+  ],
+  "passing_horiz-1band-top-edge": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAA*****AAA_***********_***********_***********_***********_***********_***********_***********_*****A*****"
+  ],
+  "passing_horiz-1row-Ledge": [
+    "AAAAAAAAAAA_A****AAA**A_A*****A****_A**********_A**********_A**********_A**********_A**********_A**********_A**********_A**********"
+  ],
+  "passing_horiz-2row-top-bot": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_***********_***********_***********_***********_***********_***********_***********_AAAAAAAAAAA_AAAAAAAAAAA"
+  ],
+  "speckles_curve-BL-to-UR-noisy": [],
+  "speckles_curve-BL-to-UR-tight": [],
+  "speckles_inmarginal-curve": [
+    "AAAAAAAAAAA_AAAAA*AAAAA_AA*A*******_AAAA*******_AA*A*******_AAAA*******_AAA********_A*A********_AAA********_AAA********_A*A********",
+    "AAAAAAAAAAA_AAAA**A*AAA_A*AAAAAAAAA_AAA*A*A*A**_AAAAAAA****_AAA*A******_A*AAA******_AAAA*******_AAAA*******_*AAA*******_AAA********",
+    "AAAAAAAAAAA_A*A*A*A****_AAAAAAA****_AA*A*A*****_AAAAAA*****_AAAA*A*****_A*AAA******_AAA*A******_A*AAA******_AAAA*******_AAAA*******"
+  ]
+}

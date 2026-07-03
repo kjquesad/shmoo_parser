@@ -1,0 +1,6 @@
+# ML dependencies for the shmoo classifier (Phase 0+).
+# The rule-based classifier itself remains stdlib-only; these are only required
+# when training or running the ML model path.
+numpy>=1.26
+scikit-learn>=1.4
+joblib>=1.3

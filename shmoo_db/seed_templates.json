@@ -1,0 +1,27 @@
+{
+  "_comment": "Hand-authored 11x11 seed grids for classes whose source docs contain only rules (no reference example grids). Derived from each class's documented zone structure / probability matrix. Merged with extract_templates.json output by build_database.py.",
+  "marginal_horiz-passing-1band": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_A*A***A**A*_***********_***********_***********_***********_***********_***********",
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_**A*AA***A*_*********A*_***********_***********_***********_***********_***********"
+  ],
+  "marginal_horiz-passing-2band": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_A**A*A**A**_***********_***********_***********_***********_*A**A*A**A*_AAAAAAAAAAA",
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_**AA*A***A*_***********_***********_***********_***********_**A*AA**A**_AAAAAAAAA*A"
+  ],
+  "marginal_horiz-special-stepped": [
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAAAAAA_AAAAAAA****_***********_*********AA_********AAA_*******AAAA_*****AAAAAA_***AAAAAAAA_**AAAAAAAAA",
+    "AAAAAAAAAAA_AAAAAAAAAAA_AAAAAA*****_AAAA*******_**********A_********AAA_*******AAAA_******AAAAA_****AAAAAAA_**AAAAAAAAA_*AAAAAAAAAA"
+  ],
+  "marginal_vert-curve": [
+    "AAAAAAAA***_AAAAAAA****_AAAAAA*****_AAAAA******_AAAA*******_AAAA*******_AAAA*******_AAAAA******_AAAAAA*****_AAAAAAA****_AAAAAAAA***",
+    "AAAAAAAAA**_AAAAAAA****_AAAAAA*****_AAAA*******_AAA********_AAA********_AAA********_AAAA*******_AAAAAA*****_AAAAAAA****_AAAAAAAA***"
+  ],
+  "speckles_curve-BL-to-UR-tight": [
+    "AA*********_AA*********_AAA********_AAAA*******_AAAA*******_AAAAA******_AAAAAAA****_AAAAAAAA***_AAAAAAAAAA*_AAAAAAAAAAA_AAAAAAAAAAA",
+    "A**********_AA*********_AA*********_AAAA*******_AAAA*******_AAAAAA*****_AAAAAAA****_AAAAAAAAA**_AAAAAAAAAA*_AAAAAAAAAAA_AAAAAAAAAAA"
+  ],
+  "speckles_curve-BL-to-UR-noisy": [
+    "AA*********_A*A********_AAA********_A*AA*******_AAAA*******_AAA*A******_AA*AAAA****_AAAA*AAA***_AAAAAAA*AA*_AAAAAAAAAAA_AAAAAAAAAAA",
+    "A*A********_AA*********_A*A*******A_AAA*******A_A*AA*A*****_AAAA*A*****_AA*AAA*A***_AAA*AAAA*A*_AAAAA*AAAAA_AAAAAAAAAAA_AAAAAAAAAAA"
+  ]
+}
