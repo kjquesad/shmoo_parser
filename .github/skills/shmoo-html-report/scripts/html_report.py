@@ -682,7 +682,7 @@ body.dark #hm-point .title{color:#cfe8dd}
     }
     html += '</tr>';
 
-    for (var y = 0; y < rows.length; y++) {
+    for (var y = rows.length - 1; y >= 0; y--) {
       var yVal = (yStart + y * yStep).toFixed(4);
       html += "<tr><td style='font-size:11px;white-space:nowrap;padding-right:8px'>" + yVal + "</td>";
       var row = rows[y];
@@ -953,7 +953,7 @@ body.dark #hm-point .title{color:#cfe8dd}
       html += "<td style='font-size:11px;writing-mode:vertical-rl;transform:rotate(180deg);height:72px;padding:4px 2px'>" + xVal + "</td>";
     }
     html += '</tr>';
-    for (var y2 = 0; y2 < maxRows; y2++) {
+    for (var y2 = maxRows - 1; y2 >= 0; y2--) {
       var yVal = (yStart + y2 * yStep).toFixed(4);
       html += "<tr><td style='font-size:11px;white-space:nowrap;padding-right:8px'>" + yVal + "</td>";
       for (var x2 = 0; x2 < maxCols; x2++) {

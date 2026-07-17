@@ -41,6 +41,9 @@ def read_text_lines(file_path: Path) -> List[str]:
 
 def parse_visualid_from_line(line: str) -> Optional[str]:
     """Extract VisualID using the same token styles observed in existing logs."""
+    if line.lstrip().upper().startswith("SORT_VISUALID"):
+        # Synthetic sort marker; handled by parse_sort_visualid_from_line.
+        return None
     if "visualid" not in line.lower() or "strgval_miss" in line.lower():
         return None
 
@@ -72,6 +75,32 @@ def parse_visualid_from_line(line: str) -> Optional[str]:
     return None
 
 
+# Sort/wafer ITTUFs do not carry a packaged VisualID. Instead they identify each
+# die by wafer id + wafer X/Y coordinates (e.g. "4_wafid_251", "3_wafxloc_-1",
+# "3_wafyloc_-2"). We synthesize a VisualID as "<wafid>_<x>_<y>" (WAF_X_Y).
+_WAFID_RE = re.compile(r"^\d+_wafid_(\S+)", re.IGNORECASE)
+_WAFXLOC_RE = re.compile(r"^\d+_wafxloc_(-?\d+)", re.IGNORECASE)
+_WAFYLOC_RE = re.compile(r"^\d+_wafyloc_(-?\d+)", re.IGNORECASE)
+_SORT_VISUALID_RE = re.compile(r"SORT_VISUALID=\[([^\]]+)\]")
+
+
+def build_sort_visualid(
+    wafid: Optional[str], wafxloc: Optional[str], wafyloc: Optional[str]
+) -> Optional[str]:
+    """Construct a sort VisualID as '<wafid>_<x>_<y>' when all parts are present."""
+    if wafid and wafxloc is not None and wafyloc is not None:
+        return f"{wafid}_{wafxloc}_{wafyloc}"
+    return None
+
+
+def parse_sort_visualid_from_line(line: str) -> Optional[str]:
+    """Extract a synthesized sort VisualID from a SORT_VISUALID=[...] marker line."""
+    match = _SORT_VISUALID_RE.search(line)
+    if match:
+        return match.group(1).strip() or None
+    return None
+
+
 def extract_shmoohub_sections(
     lines: List[str], progress_label: str = "", heartbeat_every_lines: int = 250000
 ) -> List[List[str]]:
@@ -85,6 +114,9 @@ def extract_shmoohub_sections(
     pending_dieid: Optional[str] = None
     pending_tname: Optional[str] = None
     current_visualid_line: Optional[str] = None
+    pending_wafid: Optional[str] = None
+    pending_wafxloc: Optional[str] = None
+    pending_wafyloc: Optional[str] = None
 
     for line_index, line in enumerate(lines, start=1):
         if heartbeat_every_lines > 0 and line_index % heartbeat_every_lines == 0:
@@ -110,6 +142,17 @@ def extract_shmoohub_sections(
         if "visualid" in line.lower() and "strgval_miss" not in line.lower():
             current_visualid_line = line.strip()
 
+        waf_stripped = line.strip().lstrip("\ufeff")
+        waf_match = _WAFID_RE.match(waf_stripped)
+        if waf_match:
+            pending_wafid = waf_match.group(1).strip()
+        waf_match = _WAFXLOC_RE.match(waf_stripped)
+        if waf_match:
+            pending_wafxloc = waf_match.group(1).strip()
+        waf_match = _WAFYLOC_RE.match(waf_stripped)
+        if waf_match:
+            pending_wafyloc = waf_match.group(1).strip()
+
         if "shmoohub" in line.lower():
             if in_shmoo and current_section:
                 sections.append(current_section)
@@ -119,6 +162,9 @@ def extract_shmoohub_sections(
 
             if current_visualid_line:
                 current_section.append(current_visualid_line)
+            sort_vid = build_sort_visualid(pending_wafid, pending_wafxloc, pending_wafyloc)
+            if sort_vid:
+                current_section.append(f"SORT_VISUALID=[{sort_vid}]")
             if pending_plist:
                 current_section.append(f"Plist=[{pending_plist}]")
             if pending_dieid:
@@ -152,6 +198,9 @@ def extract_ecads_sections(
     pending_dieid: Optional[str] = None
     pending_tname: Optional[str] = None
     current_visualid_line: Optional[str] = None
+    pending_wafid: Optional[str] = None
+    pending_wafxloc: Optional[str] = None
+    pending_wafyloc: Optional[str] = None
 
     for line_index, line in enumerate(lines, start=1):
         if heartbeat_every_lines > 0 and line_index % heartbeat_every_lines == 0:
@@ -171,6 +220,15 @@ def extract_ecads_sections(
             current_visualid_line = line.strip()
 
         normalized = line.strip().lstrip("\ufeff")
+        waf_match = _WAFID_RE.match(normalized)
+        if waf_match:
+            pending_wafid = waf_match.group(1).strip()
+        waf_match = _WAFXLOC_RE.match(normalized)
+        if waf_match:
+            pending_wafxloc = waf_match.group(1).strip()
+        waf_match = _WAFYLOC_RE.match(normalized)
+        if waf_match:
+            pending_wafyloc = waf_match.group(1).strip()
         if re.match(r"\d+_tname_", normalized):
             pending_tname = normalized
 
@@ -183,6 +241,9 @@ def extract_ecads_sections(
 
             if current_visualid_line:
                 current_section.append(current_visualid_line)
+            sort_vid = build_sort_visualid(pending_wafid, pending_wafxloc, pending_wafyloc)
+            if sort_vid:
+                current_section.append(f"SORT_VISUALID=[{sort_vid}]")
             if pending_plist:
                 current_section.append(f"Plist=[{pending_plist}]")
             if pending_dieid:
@@ -223,6 +284,9 @@ def extract_sections_single_pass(
     pending_dieid: Optional[str] = None
     pending_tname: Optional[str] = None
     current_visualid_line: Optional[str] = None
+    pending_wafid: Optional[str] = None
+    pending_wafxloc: Optional[str] = None
+    pending_wafyloc: Optional[str] = None
 
     for line_index, line in enumerate(lines, start=1):
         if heartbeat_every_lines > 0 and line_index % heartbeat_every_lines == 0:
@@ -250,6 +314,16 @@ def extract_sections_single_pass(
         if "visualid" in lower_line and "strgval_miss" not in lower_line:
             current_visualid_line = line.strip()
 
+        waf_match = _WAFID_RE.match(normalized_line)
+        if waf_match:
+            pending_wafid = waf_match.group(1).strip()
+        waf_match = _WAFXLOC_RE.match(normalized_line)
+        if waf_match:
+            pending_wafxloc = waf_match.group(1).strip()
+        waf_match = _WAFYLOC_RE.match(normalized_line)
+        if waf_match:
+            pending_wafyloc = waf_match.group(1).strip()
+
         if "shmoohub" in lower_line:
             if in_shmoohub and shmoohub_current:
                 shmoohub_sections.append(shmoohub_current)
@@ -259,6 +333,9 @@ def extract_sections_single_pass(
 
             if current_visualid_line:
                 shmoohub_current.append(current_visualid_line)
+            sort_vid = build_sort_visualid(pending_wafid, pending_wafxloc, pending_wafyloc)
+            if sort_vid:
+                shmoohub_current.append(f"SORT_VISUALID=[{sort_vid}]")
             if pending_plist:
                 shmoohub_current.append(f"Plist=[{pending_plist}]")
             if pending_dieid:
@@ -280,6 +357,9 @@ def extract_sections_single_pass(
 
             if current_visualid_line:
                 ecads_current.append(current_visualid_line)
+            sort_vid = build_sort_visualid(pending_wafid, pending_wafxloc, pending_wafyloc)
+            if sort_vid:
+                ecads_current.append(f"SORT_VISUALID=[{sort_vid}]")
             if pending_plist:
                 ecads_current.append(f"Plist=[{pending_plist}]")
             if pending_dieid:
@@ -684,6 +764,7 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
     shmoo_results_data: Optional[str] = None
     capture_next_as_results = False
     tname_instances: List[str] = []
+    shmoo_instance: Optional[str] = None
 
     # Plist candidates collected during parsing (resolved by priority after loop)
     plist_from_strgval: Optional[str] = None       # Priority 1: ^LEGEND^ + next strgval_ line
@@ -735,6 +816,11 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
             # cross-unit overwrite when later lines from subsequent context appear.
             visual_id = maybe_visualid
 
+        maybe_sort_visualid = parse_sort_visualid_from_line(stripped)
+        if maybe_sort_visualid and not visual_id:
+            # Sort/wafer ITTUFs have no packaged VisualID; use synthesized WAF_X_Y.
+            visual_id = maybe_sort_visualid
+
         tname_match = re.match(r"\d+_tname_(.+)", stripped)
         if tname_match:
             if not team:
@@ -742,6 +828,12 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
             instance_candidate = _extract_instance_from_tname(stripped)
             if instance_candidate:
                 tname_instances.append(instance_candidate)
+                # The tname carrying _ShmooResults is the definitive instance for
+                # strgval-format shmoos. Later tname lines in the same section can
+                # belong to unrelated tests (e.g. absorbed VMIN scalars) and must
+                # not override this.
+                if "shmooresults" in stripped.lower() and shmoo_instance is None:
+                    shmoo_instance = instance_candidate
 
         if "ShmooParams" in stripped:
             shmoo_title = stripped
@@ -822,12 +914,17 @@ def parse_shmoo_section(section: List[str], source_file: str, section_index: int
 
     instance_name: Optional[str] = None
 
+    # A tname explicitly tagged with _ShmooResults is the true owner of this grid.
+    if shmoo_instance:
+        instance_name = shmoo_instance
+
     # Prefer instance candidates parsed from tname lines over generic ShmooParams wrappers.
-    for candidate in tname_instances:
-        upper = candidate.upper()
-        if "VMIN" in upper and not upper.startswith("RESET_"):
-            instance_name = candidate
-            break
+    if instance_name is None:
+        for candidate in tname_instances:
+            upper = candidate.upper()
+            if "VMIN" in upper and not upper.startswith("RESET_"):
+                instance_name = candidate
+                break
 
     if instance_name is None:
         for candidate in tname_instances:
@@ -893,6 +990,11 @@ def parse_ecads_section(section: List[str], source_file: str, section_index: int
             # Keep first visual ID in section; later visualid tokens can belong
             # to neighboring units in mixed logs.
             visual_id = maybe_visualid
+
+        maybe_sort_visualid = parse_sort_visualid_from_line(stripped)
+        if maybe_sort_visualid and not visual_id:
+            # Sort/wafer ITTUFs have no packaged VisualID; use synthesized WAF_X_Y.
+            visual_id = maybe_sort_visualid
 
         plist_match = re.search(r"Plist\s*=\s*\[([^\]]+)\]", stripped, re.IGNORECASE)
         if plist_match:
